@@ -1,0 +1,72 @@
+logging output to logs/2025-10-19_21-19-35.log
+
+================================================================================
+Switch 2.0.9, https://switch-model.org
+================================================================================
+WARNING: No module list found. Please create a modules.txt file with a list of modules to use for the model.
+Arguments:
+    log_run_to_file=True, logs_dir='logs', log_level='info',
+    inputs_dir='/Users/melek/Desktop/Research/Capacity
+    Expansion/Switch/switch-2.0.9./examples/3zone_toy/inputs copy', graph=True,
+    solver='gurobi', solver_manager='serial', tee=True,
+    outputs_dir='/Users/melek/Desktop/Research/Capacity
+    Expansion/Switch/switch-2.0.9./examples/3zone_toy/outputs copy',
+    interact_color='NoColor', verbose=True
+
+Modules:
+    switch_model.solve
+================================================================================
+
+Model defined in 0.00 s.
+
+Loading inputs...
+Data read in 0.00 s.
+
+Constructing model instance from data and rules...
+Model instance constructed in 0.00 s.
+
+Executing pre-solve functions...
+Completed pre-solve processing in 0.00 s.
+
+Solving model...
+--------------------------------- solver output --------------------------------
+Read LP format model from file /var/folders/ym/z79dll090wxf8wncdssnz92r0000gn/T/tmpg9guwpan.pyomo.lp
+Reading time = 0.00 seconds
+x1: 1 rows, 1 columns, 1 nonzeros
+Gurobi Optimizer version 12.0.2 build v12.0.2rc0 (mac64[arm] - Darwin 25.0.0 25A362)
+
+CPU model: Apple M2
+Thread count: 8 physical cores, 8 logical processors, using up to 8 threads
+
+Optimize a model with 1 rows, 1 columns and 1 nonzeros
+Model fingerprint: 0x026f6d32
+Coefficient statistics:
+  Matrix range     [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [1e+00, 1e+00]
+Presolve removed 1 rows and 1 columns
+Presolve time: 0.00s
+Presolve: All rows and columns removed
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0    1.0000000e+00   0.000000e+00   0.000000e+00      0s
+
+Solved in 0 iterations and 0.00 seconds (0.00 work units)
+Optimal objective  1.000000000e+00
+---------------------------- end of solver output ----------------------------
+
+Solver finished. Total time spent in solver: 0.02 s.
+
+Optimization termination condition was optimal.
+Solver message: Model was solved to optimality (subject to tolerances), and an optimal solution is available.
+
+Executing post-solve functions...
+Completed post-solve processing in 0.00 s.
+WARNING: No module list found. Please create a modules.txt file with a list of modules to use for the model.
+>>> Graphing modules <<<
+
+Took 0.00045800209045410156 to generate all graphs.
+
+Switch completed successfully in 0.08 s.
+================================================================================
+

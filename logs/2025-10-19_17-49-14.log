@@ -1,0 +1,58 @@
+logging output to logs/2025-10-19_17-49-14.log
+
+================================================================================
+Switch 2.0.9, https://switch-model.org
+================================================================================
+Arguments:
+    retire_time='late', log_run_to_file=True, logs_dir='logs', log_level='info',
+    inputs_dir='/Users/melek/Desktop/Research/Capacity
+    Expansion/Switch/switch-2.0.9./examples/3zone_toy/inputs_graph',
+    solver='glpk', solver_manager='serial',
+    outputs_dir='/Users/melek/Desktop/Research/Capacity
+    Expansion/Switch/switch-2.0.9./examples/3zone_toy/outputs_graph',
+    interact_color='NoColor', verbose=True
+
+Modules:
+    switch_model, switch_model.timescales, switch_model.financials,
+    switch_model.balancing.load_zones, switch_model.energy_sources.properties,
+    switch_model.generators.core.build, switch_model.generators.core.dispatch,
+    switch_model.reporting, switch_model.policies.smog_policies,
+    switch_model.transmission.local_td, switch_model.generators.core.no_commit,
+    switch_model.energy_sources.fuel_costs.markets,
+    switch_model.transmission.transport.build,
+    switch_model.transmission.transport.dispatch, switch_model.solve
+================================================================================
+
+Model defined in 1.03 s.
+
+Loading inputs...
+Data read in 0.01 s.
+
+Constructing model instance from data and rules...
+Constructed 1 of 233 components (0%)
+Constructed 24 of 233 components (10%)
+Constructed 47 of 233 components (20%)
+Constructed 70 of 233 components (30%)
+Constructed 94 of 233 components (40%)
+Constructed 117 of 233 components (50%)
+Constructed 140 of 233 components (60%)
+Constructed 164 of 233 components (70%)
+Constructed 187 of 233 components (80%)
+Constructed 210 of 233 components (90%)
+Constructed 233 of 233 components (100%)
+Model instance constructed in 0.02 s.
+
+Executing pre-solve functions...
+Completed pre-solve processing in 0.00 s.
+
+Solving model...
+Solver finished. Total time spent in solver: 0.06 s.
+
+Optimization termination condition was optimal.
+
+Executing post-solve functions...
+Completed post-solve processing in 0.55 s.
+
+Switch completed successfully in 1.67 s.
+================================================================================
+

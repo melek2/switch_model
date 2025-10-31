@@ -1,0 +1,108 @@
+logging output to logs/2025-10-19_21-21-39.log
+
+================================================================================
+Switch 2.0.9, https://switch-model.org
+================================================================================
+Arguments:
+    retire_time='late', log_run_to_file=True, logs_dir='logs', log_level='info',
+    inputs_dir='/Users/melek/Desktop/Research/Capacity
+    Expansion/Switch/switch-2.0.9./examples/3zone_toy/inputs copy', graph=True,
+    solver='gurobi', solver_manager='serial', tee=True,
+    outputs_dir='/Users/melek/Desktop/Research/Capacity
+    Expansion/Switch/switch-2.0.9./examples/3zone_toy/outputs copy',
+    interact_color='NoColor', verbose=True
+
+Modules:
+    switch_model, switch_model.timescales, switch_model.financials,
+    switch_model.balancing.load_zones, switch_model.energy_sources.properties,
+    switch_model.generators.core.build, switch_model.generators.core.dispatch,
+    switch_model.reporting, switch_model.policies.smog_policies,
+    switch_model.transmission.local_td, switch_model.generators.core.no_commit,
+    switch_model.energy_sources.fuel_costs.markets,
+    switch_model.transmission.transport.build,
+    switch_model.transmission.transport.dispatch, switch_model.solve
+================================================================================
+
+Model defined in 0.01 s.
+
+Loading inputs...
+Data read in 0.01 s.
+
+Constructing model instance from data and rules...
+Constructed 1 of 233 components (0%)
+Constructed 24 of 233 components (10%)
+Constructed 47 of 233 components (20%)
+Constructed 70 of 233 components (30%)
+Constructed 94 of 233 components (40%)
+Constructed 117 of 233 components (50%)
+Constructed 140 of 233 components (60%)
+Constructed 164 of 233 components (70%)
+Constructed 187 of 233 components (80%)
+Constructed 210 of 233 components (90%)
+Constructed 233 of 233 components (100%)
+Model instance constructed in 0.02 s.
+
+Executing pre-solve functions...
+Completed pre-solve processing in 0.00 s.
+
+Solving model...
+--------------------------------- solver output --------------------------------
+Read LP format model from file /var/folders/ym/z79dll090wxf8wncdssnz92r0000gn/T/tmpm46a2y63.pyomo.lp
+Reading time = 0.00 seconds
+x1: 775 rows, 618 columns, 2108 nonzeros
+Gurobi Optimizer version 12.0.2 build v12.0.2rc0 (mac64[arm] - Darwin 25.0.0 25A362)
+
+CPU model: Apple M2
+Thread count: 8 physical cores, 8 logical processors, using up to 8 threads
+
+Optimize a model with 775 rows, 618 columns and 2108 nonzeros
+Model fingerprint: 0xa9d7680f
+Variable types: 616 continuous, 2 integer (2 binary)
+Coefficient statistics:
+  Matrix range     [5e-02, 1e+05]
+  Objective range  [7e+00, 2e+09]
+  Bounds range     [4e-01, 2e+09]
+  RHS range        [4e-01, 1e+01]
+Warning: Model contains large objective coefficients
+Warning: Model contains large bounds
+         Consider reformulating model or setting NumericFocus parameter
+         to avoid numerical issues.
+Presolve removed 600 rows and 404 columns
+Presolve time: 0.00s
+Presolved: 175 rows, 214 columns, 577 nonzeros
+Variable types: 212 continuous, 2 integer (2 binary)
+Found heuristic solution: objective 4.420367e+09
+
+Root relaxation: objective 1.898311e+08, 141 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0 1.8983e+08    0    1 4.4204e+09 1.8983e+08  95.7%     -    0s
+H    0     0                    2.078305e+09 1.8983e+08  90.9%     -    0s
+H    0     0                    1.931459e+08 1.8983e+08  1.72%     -    0s
+
+Explored 1 nodes (141 simplex iterations) in 0.00 seconds (0.00 work units)
+Thread count was 8 (of 8 available processors)
+
+Solution count 3: 1.93146e+08 2.0783e+09 4.42037e+09 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 1.931459066701e+08, best bound 1.931459066701e+08, gap 0.0000%
+---------------------------- end of solver output ----------------------------
+
+Solver finished. Total time spent in solver: 0.02 s.
+
+Optimization termination condition was optimal.
+Solver message: Model was solved to optimality (subject to tolerances), and an optimal solution is available.
+
+Executing post-solve functions...
+Completed post-solve processing in 0.41 s.
+WARNING: No module list found. Please create a modules.txt file with a list of modules to use for the model.
+>>> Graphing modules <<<
+dispatch, curtailment, dispatch_per_scenario, curtailment_compare_scenarios, total_dispatch, curtailment_per_period, 
+Took 0.8872129917144775 to generate all graphs.
+
+Switch completed successfully in 1.41 s.
+================================================================================
+
