@@ -190,9 +190,11 @@ def define_components(m):
         m.Build_Pumped_Hydro_Year = Constraint(
             m.PH_GENS,
             m.PERIODS,
-            rule=lambda m, g, pe: m.BuildPumpedHydroMW[g, pe] == 0.0
-            if pe != m.options.ph_year
-            else Constraint.Skip,
+            rule=lambda m, g, pe: (
+                m.BuildPumpedHydroMW[g, pe] == 0.0
+                if pe != m.options.ph_year
+                else Constraint.Skip
+            ),
         )
 
 

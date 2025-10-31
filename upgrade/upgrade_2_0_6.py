@@ -110,4 +110,3 @@ def update_modules(inputs_dir):
             )
         except KeyError:
             pass
-

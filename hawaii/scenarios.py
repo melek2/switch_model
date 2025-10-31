@@ -116,7 +116,7 @@ def start_next_standard_scenario():
     Then report it as completed and return the scenario arguments
     (including any modifications from the command line)."""
     scenarios_list = get_standard_scenarios_dict()
-    for (s, args) in scenarios_list.items():
+    for s, args in scenarios_list.items():
         if scenario_already_run(s):
             continue
         else:
@@ -126,7 +126,8 @@ def start_next_standard_scenario():
 
 def get_scenario_args(scenario):
     """Return the arguments for the specified standard scenario, amended with any command-line arguments.
-    This may also be called with an empty scenario name ('') to define a scenario using only command-line arguments."""
+    This may also be called with an empty scenario name ('') to define a scenario using only command-line arguments.
+    """
     if scenario == "":
         return merge_scenarios(cmd_line_args())
     else:

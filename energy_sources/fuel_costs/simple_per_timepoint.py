@@ -80,7 +80,7 @@ def define_components(mod):
         if not hasattr(m, "FuelCostsPerTP_dict"):
             # cache all Fuel_Cost_TP values in a dictionary (created in one pass)
             m.FuelCostsPerTP_dict = {t2: 0.0 for t2 in m.TIMEPOINTS}
-            for (g, t2, f) in m.GEN_TP_FUELS:
+            for g, t2, f in m.GEN_TP_FUELS:
                 if (g, t2, f) not in m.GEN_TP_FUELS_UNAVAILABLE:
                     m.FuelCostsPerTP_dict[t2] += (
                         m.GenFuelUseRate[g, t2, f]

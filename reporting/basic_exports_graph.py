@@ -16,15 +16,18 @@ Flags:
 
 import os
 import math
-import sys, subprocess, shlex 
+import sys, subprocess, shlex
+
 # Use a non-interactive backend so we can save PNGs in headless runs
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pyomo.environ as pyo
 import switch_model.reporting as export
 import os, sys, contextlib, argparse
 import importlib.util
+
 
 def _listed_in_modules(mod, dotted: str) -> bool:
     # Honors either modules.txt entries or --include-modules; falls back to “present in site-packages”
@@ -54,6 +57,7 @@ def _listed_in_modules(mod, dotted: str) -> bool:
     # Keep it strict per your request: require explicit listing.
     return False
 
+
 @contextlib.contextmanager
 def _pushd(path):
     old = os.getcwd()
@@ -62,6 +66,7 @@ def _pushd(path):
         yield
     finally:
         os.chdir(old)
+
 
 def _auto_run_registered_graphs(mod, outdir: str):
     """
@@ -73,7 +78,9 @@ def _auto_run_registered_graphs(mod, outdir: str):
 
     # Make sure the graph engine exists
     if importlib.util.find_spec("switch_model.tools.graph.cli") is None:
-        sys.stderr.write("[graphs] switch_model.tools.graph is listed but not importable; skipping.\n")
+        sys.stderr.write(
+            "[graphs] switch_model.tools.graph is listed but not importable; skipping.\n"
+        )
         return
 
     # Import the minimal public API used by cli_graph.py
@@ -111,13 +118,15 @@ def _auto_run_registered_graphs(mod, outdir: str):
         except Exception as e:
             sys.stderr.write(f"[graphs] Warning: graphs engine raised: {e}\n")
 
+
 def _val(x):
     """Safely get a numeric value from a Pyomo Var/Param/Expression; 0.0 if undefined."""
     try:
         return float(pyo.value(x))
     except Exception:
         return 0.0
-    
+
+
 def define_arguments(argparser):
     # CSV flags
     argparser.add_argument("--export-all", action="store_true", default=False)
@@ -129,21 +138,27 @@ def define_arguments(argparser):
     argparser.add_argument("--plot-tech-dispatch", action="store_true", default=False)
 
     argparser.add_argument(
-        "--auto-graphs", action="store_true", default=False,
-        help="After solve, run all registered @graph functions over outputs."
+        "--auto-graphs",
+        action="store_true",
+        default=False,
+        help="After solve, run all registered @graph functions over outputs.",
     )
     argparser.add_argument(
-        "--graphs", default="all",
-        help="Comma-separated list of graph names to run (default: all)."
+        "--graphs",
+        default="all",
+        help="Comma-separated list of graph names to run (default: all).",
     )
     argparser.add_argument(
-        "--graph-format", default="png",
-        help="Output format for graphs (png, svg, html, etc.; default: png)."
+        "--graph-format",
+        default="png",
+        help="Output format for graphs (png, svg, html, etc.; default: png).",
     )
+
 
 def _ensure_dir(path):
     if not os.path.exists(path):
         os.makedirs(path)
+
 
 def _capacity_table(mod):
     """
@@ -177,6 +192,7 @@ def _capacity_table(mod):
         cap.append(row)
     return periods, techs, cap
 
+
 def _dispatch_table(mod):
     """
     Return (period_labels, techs, matrix[tech][period]) for total dispatch.
@@ -206,6 +222,7 @@ def _dispatch_table(mod):
         disp.append(row)
     return periods, techs, disp
 
+
 def _stacked_bar(periods, techs, matrix, title, ylabel, outfile):
     """
     matrix is list of rows per tech, each row is values per period.
@@ -233,6 +250,8 @@ def _stacked_bar(periods, techs, matrix, title, ylabel, outfile):
     plt.tight_layout()
     plt.savefig(outfile, dpi=200)
     plt.close()
+
+
 def _run_graphs_cli(outdir: str, graphs: str, fmt: str) -> int:
     """
     Invoke the graphs CLI on the outputs dir. Returns process returncode.
@@ -254,7 +273,9 @@ def _run_graphs_cli(outdir: str, graphs: str, fmt: str) -> int:
             proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             # Surface useful logs if something goes wrong
             if proc.returncode != 0:
-                sys.stderr.write(f"[graphs] Tried {mod} -> nonzero return code {proc.returncode}\n")
+                sys.stderr.write(
+                    f"[graphs] Tried {mod} -> nonzero return code {proc.returncode}\n"
+                )
                 sys.stderr.write(proc.stderr or "")
             else:
                 # Optional: write stdout to Switch log stream
@@ -265,6 +286,7 @@ def _run_graphs_cli(outdir: str, graphs: str, fmt: str) -> int:
             sys.stderr.write(f"[graphs] Exception invoking {mod}: {e}\n")
             last_rc = 1
     return last_rc
+
 
 def post_solve(mod, outdir):
     # If --export-all, enable everything
@@ -288,7 +310,8 @@ def post_solve(mod, outdir):
             techs,
             output_file=os.path.join(summaries_dir, "capacity_by_tech_periods.csv"),
             headings=("gentech",) + tuple(periods),
-            values=lambda m, gt: (gt,) + tuple(cap[techs.index(gt)][j] for j in range(len(periods))),
+            values=lambda m, gt: (gt,)
+            + tuple(cap[techs.index(gt)][j] for j in range(len(periods))),
         )
 
     # ===== CSV: dispatch =====
@@ -299,25 +322,32 @@ def post_solve(mod, outdir):
             techs,
             output_file=os.path.join(summaries_dir, "dispatch_by_tech_periods.csv"),
             headings=("gentech",) + tuple(periods),
-            values=lambda m, gt: (gt,) + tuple(disp[techs.index(gt)][j] for j in range(len(periods))),
+            values=lambda m, gt: (gt,)
+            + tuple(disp[techs.index(gt)][j] for j in range(len(periods))),
         )
 
     # ===== CSV: transmission =====
-    if getattr(mod.options, "export_transmission", False) and hasattr(mod, "TRANSMISSION_LINES"):
+    if getattr(mod.options, "export_transmission", False) and hasattr(
+        mod, "TRANSMISSION_LINES"
+    ):
         export.write_table(
             mod,
             mod.TRANSMISSION_LINES,
             output_file=os.path.join(summaries_dir, "tx_nameplate_by_path_periods.csv"),
             headings=("path",) + tuple(mod.PERIODS),
-            values=lambda m, tx: (tx,) + tuple(m.TxCapacityNameplate[tx, p] for p in m.PERIODS),
+            values=lambda m, tx: (tx,)
+            + tuple(m.TxCapacityNameplate[tx, p] for p in m.PERIODS),
         )
         if hasattr(mod, "BuildTx"):
             export.write_table(
                 mod,
                 mod.TRANSMISSION_LINES,
-                output_file=os.path.join(summaries_dir, "tx_builds_by_path_periods.csv"),
+                output_file=os.path.join(
+                    summaries_dir, "tx_builds_by_path_periods.csv"
+                ),
                 headings=("path",) + tuple(mod.PERIODS),
-                values=lambda m, tx: (tx,) + tuple(
+                values=lambda m, tx: (tx,)
+                + tuple(
                     m.BuildTx[tx, p] if (tx, p) in m.BuildTx else 0.0 for p in m.PERIODS
                 ),
             )
@@ -326,7 +356,9 @@ def post_solve(mod, outdir):
     if getattr(mod.options, "plot_capacities", False):
         periods, techs, cap = _capacity_table(mod)
         _stacked_bar(
-            periods, techs, cap,
+            periods,
+            techs,
+            cap,
             title="Installed capacity by technology and period",
             ylabel="MW",
             outfile=os.path.join(plots_dir, "capacity_by_tech_periods.png"),
@@ -336,7 +368,9 @@ def post_solve(mod, outdir):
     if getattr(mod.options, "plot_tech_dispatch", False):
         periods, techs, disp = _dispatch_table(mod)
         _stacked_bar(
-            periods, techs, disp,
+            periods,
+            techs,
+            disp,
             title="Total dispatched energy by technology and period",
             ylabel="MWh",
             outfile=os.path.join(plots_dir, "dispatch_by_tech_periods.png"),
@@ -350,7 +384,7 @@ def post_solve(mod, outdir):
         )
         if rc != 0:
             # Don't crash the solve; just warn
-            sys.stderr.write("[graphs] Warning: auto-graphs runner returned non-zero exit code.\n")
+            sys.stderr.write(
+                "[graphs] Warning: auto-graphs runner returned non-zero exit code.\n"
+            )
     _auto_run_registered_graphs(mod, outdir)
-
-

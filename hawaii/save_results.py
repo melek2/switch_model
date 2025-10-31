@@ -3,6 +3,7 @@
 Add this module to a standard Switch model, and the post_solve() callback will
 be called automatically to store results.
 """
+
 from __future__ import division
 
 # TODO: eventually make this code more generic, e.g., create a general reporting module
@@ -80,9 +81,11 @@ def summary_values(m):
     values.extend(
         [
             str(m.options.scenario_name),
-            m.demand_response_max_share
-            if hasattr(m, "demand_response_max_share")
-            else 0.0,
+            (
+                m.demand_response_max_share
+                if hasattr(m, "demand_response_max_share")
+                else 0.0
+            ),
         ]
     )
 
@@ -541,9 +544,11 @@ def write_results(m, outputs_dir):
             for t in built_tech
         )
         + (
-            m.Pumped_Hydro_Capacity_MW[z, pe]
-            if hasattr(m, "Pumped_Hydro_Capacity_MW")
-            else 0,
+            (
+                m.Pumped_Hydro_Capacity_MW[z, pe]
+                if hasattr(m, "Pumped_Hydro_Capacity_MW")
+                else 0
+            ),
             m.FuelCellCapacityMW[z, pe] if hasattr(m, "FuelCellCapacityMW") else 0,
         ),
     )
@@ -571,9 +576,11 @@ def write_results(m, outputs_dir):
             for s in built_energy_source
         )
         + (
-            m.Pumped_Hydro_Capacity_MW[z, pe]
-            if hasattr(m, "Pumped_Hydro_Capacity_MW")
-            else 0,
+            (
+                m.Pumped_Hydro_Capacity_MW[z, pe]
+                if hasattr(m, "Pumped_Hydro_Capacity_MW")
+                else 0
+            ),
             m.FuelCellCapacityMW[z, pe] if hasattr(m, "FuelCellCapacityMW") else 0,
         ),
     )
@@ -600,9 +607,11 @@ def write_results(m, outputs_dir):
             for s in built_energy_source
         )
         + (
-            m.Pumped_Hydro_Capacity_MW[z, pe]
-            if hasattr(m, "Pumped_Hydro_Capacity_MW")
-            else 0,
+            (
+                m.Pumped_Hydro_Capacity_MW[z, pe]
+                if hasattr(m, "Pumped_Hydro_Capacity_MW")
+                else 0
+            ),
             m.FuelCellCapacityMW[z, pe] if hasattr(m, "FuelCellCapacityMW") else 0,
         ),
     )

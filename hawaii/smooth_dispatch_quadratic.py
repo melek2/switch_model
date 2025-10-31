@@ -1,5 +1,6 @@
 """Minimize excess renewable production (dissipated in transmission losses) and
 smooth out demand response and EV charging as much as possible."""
+
 from __future__ import print_function
 
 from pyomo.environ import *
@@ -139,7 +140,7 @@ def post_iterate(m):
                 "WARNING: batteries are simultaneously charged and discharged in some hours."
             )
             print("This is usually done to relax the biofuel limit.")
-            for (z, t, c, d) in double_charge:
+            for z, t, c, d in double_charge:
                 print(
                     "ChargeBattery[{z}, {t}]={c}, DischargeBattery[{z}, {t}]={d}".format(
                         z=z, t=m.tp_timestamp[t], c=c, d=d

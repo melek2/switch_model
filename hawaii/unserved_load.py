@@ -2,6 +2,7 @@
 This is often useful when the model is constrained to the edge of infeasibility,
 (e.g., when evaluating a pre-defined, just-feasible construction plan) to avoid
 spurious reports of infeasibility."""
+
 from pyomo.environ import *
 
 

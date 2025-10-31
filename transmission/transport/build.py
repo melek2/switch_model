@@ -13,6 +13,7 @@ from pyomo.environ import *
 
 from switch_model.financials import capital_recovery_factor as crf
 from switch_model.utilities import unique_list
+
 # from switch_model.tools.graph.main import graph
 
 dependencies = (
@@ -366,6 +367,8 @@ def post_solve(instance, outdir):
     if instance.options.sorted_output:
         tx_build_df.sort_index(inplace=True)
     tx_build_df.to_csv(os.path.join(outdir, "transmission.csv"))
+
+
 # all plotting is now done in post processing in switch_model/plot_switch_results.py
 # @graph(
 #     "transmission_builds_network",

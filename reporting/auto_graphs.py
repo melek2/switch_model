@@ -5,13 +5,16 @@ import os
 import contextlib
 import argparse
 
+
 def _try_import_graph_api():
     try:
         from switch_model.tools.graph.main import Scenario
         from switch_model.tools.graph.cli import add_arguments, graph_scenarios_from_cli
+
         return Scenario, add_arguments, graph_scenarios_from_cli
     except Exception:
         return None, None, None
+
 
 @contextlib.contextmanager
 def _pushd(path):
@@ -23,10 +26,12 @@ def _pushd(path):
     finally:
         os.chdir(old)
 
+
 def post_solve(mod, outdir):
     # run all @graph functions after solve, saving into <outputs>/Graphs
     from switch_model.tools.graph.main import Scenario, graph_scenarios
     import os
+
     # 1) Make sure the module(s) that define @graph are imported so they register
     __import__("switch_model.generators.core.dispatch")
     # ^ add more modules here if you have other files with @graph functions:
@@ -42,6 +47,6 @@ def post_solve(mod, outdir):
             scenarios=scenarios,
             graph_dir="Graphs",
             overwrite=True,
-            module_names=None,   # let it use modules.txt; our explicit __import__ already registered your graphs
-            skip_long=False
+            module_names=None,  # let it use modules.txt; our explicit __import__ already registered your graphs
+            skip_long=False,
         )

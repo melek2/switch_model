@@ -11,7 +11,7 @@ import switch_model
 
 
 def main():
-    cmds = ["solve", "solve-scenarios", "test", "upgrade", "info", "--version","graph"]
+    cmds = ["solve", "solve-scenarios", "test", "upgrade", "info", "--version", "graph"]
     if len(sys.argv) >= 2 and sys.argv[1] in cmds:
         # If users run a script from the command line, the location of the script
         # gets added to the start of sys.path; if they call a module from the

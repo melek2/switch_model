@@ -226,15 +226,19 @@ def define_components(m):
     m.OperateAES = Var(m.AES_OPERABLE_PERIODS, within=Binary)
     m.Enforce_AES_Deactivate = Constraint(
         m.TIMEPOINTS,
-        rule=lambda m, tp: Constraint.Skip
-        if (aes_g, tp) not in m.GEN_TPS
-        else (m.DispatchGen[aes_g, tp] <= m.OperateAES[m.tp_period[tp]] * aes_size),
+        rule=lambda m, tp: (
+            Constraint.Skip
+            if (aes_g, tp) not in m.GEN_TPS
+            else (m.DispatchGen[aes_g, tp] <= m.OperateAES[m.tp_period[tp]] * aes_size)
+        ),
     )
     m.AESDeactivateFixedCost = Expression(
         m.PERIODS,
-        rule=lambda m, per: 0.0
-        if per not in m.AES_OPERABLE_PERIODS
-        else -m.OperateAES[per] * aes_size * m.gen_fixed_om[aes_g, aes_bld_year],
+        rule=lambda m, per: (
+            0.0
+            if per not in m.AES_OPERABLE_PERIODS
+            else -m.OperateAES[per] * aes_size * m.gen_fixed_om[aes_g, aes_bld_year]
+        ),
     )
     m.Cost_Components_Per_Period.append("AESDeactivateFixedCost")
 
@@ -242,9 +246,11 @@ def define_components(m):
         # keep AES active until 2022 or just before; deactivate after that
         m.PSIP_Retire_AES = Constraint(
             m.AES_OPERABLE_PERIODS,
-            rule=lambda m, per: (m.OperateAES[per] == 1)
-            if per + m.period_length_years[per] <= 2022
-            else (m.OperateAES[per] == 0),
+            rule=lambda m, per: (
+                (m.OperateAES[per] == 1)
+                if per + m.period_length_years[per] <= 2022
+                else (m.OperateAES[per] == 0)
+            ),
         )
 
         # before 2040: no biodiesel, and only 100-300 GWh of non-LNG fossil fuels

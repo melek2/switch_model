@@ -281,16 +281,20 @@ def main(args=None, return_model=False, return_instance=False):
                 f"Completed post-solve processing in {timer.step_time():.2f} s."
             )
         if instance.options.graph:
-            os.environ["SWITCH_INPUTS_DIR"]  = instance.options.inputs_dir
+            os.environ["SWITCH_INPUTS_DIR"] = instance.options.inputs_dir
             os.environ["SWITCH_OUTPUTS_DIR"] = instance.options.outputs_dir
-            graph_main(args=[
-                "--overwrite",
-                "--graph-dir", os.path.join(instance.options.outputs_dir, "plots")  # save figures into the same outputs folder
-            ])
+            graph_main(
+                args=[
+                    "--overwrite",
+                    "--graph-dir",
+                    os.path.join(
+                        instance.options.outputs_dir, "plots"
+                    ),  # save figures into the same outputs folder
+                ]
+            )
 
         # if instance.options.graph:
         #     graph_main(args=["--overwrite"])
-
 
         logger.info(f"\nSwitch completed successfully in {timer.total_time():0.2f} s.")
         logger.info("=" * 80 + "\n")
@@ -595,8 +599,10 @@ def define_arguments(argparser):
         ),
     )
     argparser.add_argument(
-        "--graph", default=False, action='store_true',
-        help="Automatically run switch graph after post solve"
+        "--graph",
+        default=False,
+        action="store_true",
+        help="Automatically run switch graph after post solve",
     )
 
     # note: pyomo has a --solver-suffix option but it is not clear
@@ -1045,12 +1051,15 @@ def solve(model):
             solver_args["solver_io"] = model.options.solver_io
         # special support for CBC distributed with PuLP, since it's otherwise
         # hard to install on Windows
-        if model.options.solver == 'pulp_cbc':
+        if model.options.solver == "pulp_cbc":
             try:
                 from pulp.apis.core import pulp_cbc_path
+
                 model.options.solver = pulp_cbc_path
             except:
-                raise RuntimeError("Unable to import pulp.apis.core.pulp_cbc_path; is PuLP installed?")
+                raise RuntimeError(
+                    "Unable to import pulp.apis.core.pulp_cbc_path; is PuLP installed?"
+                )
 
         model.solver = SolverFactory(model.options.solver, **solver_args)
 

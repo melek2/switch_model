@@ -15,6 +15,7 @@ import os
 
 import pandas as pd
 from pyomo.environ import *
+
 # from switch_model.tools.graph.main import graph, Figure
 
 dependencies = (
@@ -301,6 +302,7 @@ def post_solve(instance, outdir):
         df.sort_index(inplace=True)
     df.to_csv(os.path.join(outdir, "local_td_energy_balance.csv"))
 
+
 # # all plotting is now done in post processing in switch_model/plot_switch_results.py
 # @graph(
 #     "local_td_energy_balance_timeseries",
@@ -310,7 +312,7 @@ def post_solve(instance, outdir):
 # def graph_local_td_energy_balance_timeseries(tools):
 #     wide = tools.get_dataframe("local_td_energy_balance_wide.csv")
 #     imp = tools.get_dataframe("WithdrawFromCentralGrid.csv")
-    
+
 #     # Map WithdrawFromCentralGrid keys to zone and timestamp if possible
 #     # Expect ZONE_TIMEPOINTS_1 = zone, ZONE_TIMEPOINTS_2 = timepoint id
 #     zcols = [c for c in imp.columns if c.upper().startswith("ZONE_TIMEPOINTS_")]

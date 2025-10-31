@@ -198,6 +198,7 @@ def cogen(m):
     m.Relax_Refinery_Cogen_Baseload_Constraint = BuildAction(
         m.REFINERY_GENS, m.REFINERIES_CLOSED_TPS, rule=rule
     )
+
     # force 0 production when refineries are closed
     def rule(m, g, t):
         if (g, t) not in m.GEN_TPS:
@@ -218,6 +219,7 @@ def cogen(m):
             if m.f_rps_eligible[f]
         ),
     )
+
     # don't burn biofuels in cogen plants
     def rule(m, g, t, f):
         if (g, t, f) not in m.GenFuelUseRate:

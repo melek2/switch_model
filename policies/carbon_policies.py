@@ -35,9 +35,11 @@ def define_components(model):
     )
     model.Enforce_Carbon_Cap = Constraint(
         model.PERIODS,
-        rule=lambda m, p: Constraint.Skip
-        if m.carbon_cap_tco2_per_yr[p] == float("inf")
-        else m.AnnualEmissions[p] <= m.carbon_cap_tco2_per_yr[p],
+        rule=lambda m, p: (
+            Constraint.Skip
+            if m.carbon_cap_tco2_per_yr[p] == float("inf")
+            else m.AnnualEmissions[p] <= m.carbon_cap_tco2_per_yr[p]
+        ),
         doc=("Enforces the carbon cap for generation-related emissions."),
     )
     # Make sure the model has a dual suffix for determining implicit carbon costs

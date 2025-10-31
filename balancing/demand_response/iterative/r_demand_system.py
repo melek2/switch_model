@@ -9,6 +9,7 @@ An alternative approach would be to store calibration data in a particular
 environment or object in R, and return that to Python. Then that could be
 returned by the python calibrate() function and attached to the model.
 """
+
 from __future__ import print_function
 from switch_model.utilities import unique_list
 

@@ -54,7 +54,8 @@ def append_table(model, *indexes, **kwargs):
 def unpack_elements(tup):
     """Unpack any multi-element objects within tup, to make a single flat tuple.
     Note: this is not recursive.
-    This is used to flatten the product of a multi-dimensional index with anything else."""
+    This is used to flatten the product of a multi-dimensional index with anything else.
+    """
     l = []
     for t in tup:
         if isinstance(t, string_types):

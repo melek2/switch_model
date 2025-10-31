@@ -18,6 +18,7 @@ from pyomo.environ import *
 
 from switch_model.reporting import write_table
 from switch_model.utilities import unwrap
+
 # from switch_model.tools.graph.main import graph
 
 dependencies = (
@@ -390,7 +391,7 @@ def define_components(mod):
         ),
         doc="The system's annual emissions, in metric tonnes of CO2 per year.",
     )
- 
+
     # PM2.5 emission rate rule
     # Units:
     #   - GenFuelUseRate[g,t,f]: MMBtu/hour
@@ -399,6 +400,7 @@ def define_components(mod):
     # Fallback (per generator):
     #   use gen_pm25_intensity[g] if > 0 else f_pm25_intensity[f].
     already_reported = set()
+
     def DispatchPM25_rule(m, g, t, f):
         if m.gen_pm25_intensity[g] > 0:
             intensity = m.gen_pm25_intensity[g]
@@ -407,11 +409,13 @@ def define_components(mod):
             # Only print once per generator if the fallback value is nonzero
             if g not in already_reported and value(m.f_pm25_intensity[f]) != 0:
                 # print(f"[INFO - PM2.5] No gen_pm25_intensity for {g} found (or reported value = 0) in gen_pm25_costs.csv. "   # OLD
-                print(f"[INFO - PM2.5] No gen_pm25_intensity for {g} found (or reported value = 0) in gen_emission_costs.csv. " # NEW
-                    f"Using nonzero fallback f_pm25_intensity[{f}] = {value(m.f_pm25_intensity[f])}.")
+                print(
+                    f"[INFO - PM2.5] No gen_pm25_intensity for {g} found (or reported value = 0) in gen_emission_costs.csv. "  # NEW
+                    f"Using nonzero fallback f_pm25_intensity[{f}] = {value(m.f_pm25_intensity[f])}."
+                )
                 already_reported.add(g)
         return m.GenFuelUseRate[g, t, f] * intensity
-    
+
     # Generator-level override (optional). If left at default 0.0, the model
     # falls back to f_pm25_intensity[f] for that generator.
     # OLD: Loaded via load_inputs() from inputs/gen_pm25_costs.csv.
@@ -420,14 +424,14 @@ def define_components(mod):
         mod.GENERATION_PROJECTS,
         within=NonNegativeReals,
         default=0.0,
-        doc="Generator-level PM2.5 intensity (tonnes/MMBtu)."
+        doc="Generator-level PM2.5 intensity (tonnes/MMBtu).",
     )
 
     # Instantaneous PM2.5 emission rate (tonnes/hour) by (g,t,f)
     mod.DispatchPM25 = Expression(
         mod.GEN_TP_FUELS,
         rule=DispatchPM25_rule,
-        doc="PM2.5 emission rate (mass per hour) from each generator, fuel, and timepoint."
+        doc="PM2.5 emission rate (mass per hour) from each generator, fuel, and timepoint.",
     )
 
     # Annual PM2.5 aggregation by period (tonnes/year)
@@ -441,7 +445,7 @@ def define_components(mod):
     mod.AnnualPM25 = Expression(
         mod.PERIODS,
         rule=annual_pm25_rule,
-        doc="Total PM2.5 emissions (in base mass units per year) aggregated over all generators and fuels."
+        doc="Total PM2.5 emissions (in base mass units per year) aggregated over all generators and fuels.",
     )
 
     mod.GenVariableOMCostsInTP = Expression(
@@ -482,11 +486,10 @@ def load_inputs(mod, switch_data, inputs_dir):
         optional=True,
         # filename=os.path.join(inputs_dir, "gen_pm25_costs.csv"), #OLD
         filename=os.path.join(inputs_dir, "gen_emission_costs.csv"),
-        select=('GENERATION_PROJECT', 'gen_pm25_intensity_ton_per_MMBtu'),
+        select=("GENERATION_PROJECT", "gen_pm25_intensity_ton_per_MMBtu"),
         index=mod.GENERATION_PROJECTS,
-        param=(mod.gen_pm25_intensity,)
-        )
-
+        param=(mod.gen_pm25_intensity,),
+    )
 
 
 def post_solve(instance, outdir):
@@ -540,7 +543,8 @@ def post_solve(instance, outdir):
             "tp_weight_in_year_hrs": instance.tp_weight_in_year[t],
             "period": instance.tp_period[t],
             "DispatchGen_MW": value(instance.DispatchGen[g, t]),
-            "Curtailment_MW": value(instance.DispatchUpperLimit[g, t]) - value(instance.DispatchGen[g, t]),
+            "Curtailment_MW": value(instance.DispatchUpperLimit[g, t])
+            - value(instance.DispatchGen[g, t]),
             "Energy_GWh_typical_yr": value(
                 instance.DispatchGen[g, t] * instance.tp_weight_in_year[t] / 1000
             ),
@@ -560,21 +564,27 @@ def post_solve(instance, outdir):
                 if instance.gen_uses_fuel[g]
                 else 0
             ),
-            "DispatchPM25_ton_per_hr": ( # values are in tonnes (not grams), consistent with PM2.5 intensity units in tonnes/MMBtu.
+            "DispatchPM25_ton_per_hr": (  # values are in tonnes (not grams), consistent with PM2.5 intensity units in tonnes/MMBtu.
                 value(
-                    sum(instance.DispatchPM25[g, t, f]
-                        for f in instance.FUELS_FOR_GEN[g])
+                    sum(
+                        instance.DispatchPM25[g, t, f]
+                        for f in instance.FUELS_FOR_GEN[g]
                     )
-                if instance.gen_uses_fuel[g] else 0.0
+                )
+                if instance.gen_uses_fuel[g]
+                else 0.0
             ),
             # "DispatchPM25_g_per_typical_yr": (
-            "DispatchPM25_ton_per_typical_yr": ( # values are in tonnes (not grams), consistent with PM2.5 intensity units in tonnes/MMBtu.
+            "DispatchPM25_ton_per_typical_yr": (  # values are in tonnes (not grams), consistent with PM2.5 intensity units in tonnes/MMBtu.
                 value(
-                    sum(instance.DispatchPM25[g, t, f] * instance.tp_weight_in_year[t]
-                        for f in instance.FUELS_FOR_GEN[g])
+                    sum(
+                        instance.DispatchPM25[g, t, f] * instance.tp_weight_in_year[t]
+                        for f in instance.FUELS_FOR_GEN[g]
+                    )
                 )
-                if instance.gen_uses_fuel[g] else 0.0
-            ), 
+                if instance.gen_uses_fuel[g]
+                else 0.0
+            ),
             "GenCapacity_MW": value(instance.GenCapacity[g, p]),
             "GenCapitalCosts": value(instance.GenCapitalCosts[g, p]),
             "GenFixedOMCosts": value(instance.GenFixedOMCosts[g, p]),
@@ -727,11 +737,12 @@ def post_solve(instance, outdir):
                     + p9.scale_y_continuous(name="Energy (GWh/yr)")
                     + p9.theme_bw()
                 )
-                plot_dir = os.path.join(outdir, 'plots')
+                plot_dir = os.path.join(outdir, "plots")
                 os.makedirs(plot_dir, exist_ok=True)
                 annual_summary_plot.save(filename=os.path.join(plot_dir, outfile))
-                annual_summary_plot.save(filename=os.path.join(outdir, 'plots',outfile))
-
+                annual_summary_plot.save(
+                    filename=os.path.join(outdir, "plots", outfile)
+                )
 
 
 # all plotting is now done in post processing in switch_model/plot_switch_results.py
@@ -881,7 +892,6 @@ def post_solve(instance, outdir):
 #     )
 
 
-
 # @graph(
 #     "generation_mix_by_period",
 #     title="Generation mix by period (GWh)",
@@ -1029,7 +1039,7 @@ def post_solve(instance, outdir):
 # #         columns="gen_type",
 # #         values="Energy_GWh_typical_yr",
 # #         aggfunc="sum",
-# #         observed=False,    
+# #         observed=False,
 # #     )
 # #     # Convert values to TWh
 # #     total_dispatch *= 1E-3
@@ -1279,11 +1289,10 @@ def post_solve(instance, outdir):
 # #     load["value"] *= load["tp_duration"] / 1e6
 
 
-
 # #     def rolling_sum(df):
 # #         days = 14
 # #         freq = str(days) + "D"
-# #         offset = tools.pd.Timedelta(freq) / 2        
+# #         offset = tools.pd.Timedelta(freq) / 2
 # #         print('#1',df.head())
 # #         df = df.rolling(freq, center=True).value.sum().reset_index()
 # #         print('#2',df.head())
@@ -1340,5 +1349,3 @@ def post_solve(instance, outdir):
 # #     total_dispatch.plot(ax=ax, color="green", linestyle="dashed")
 # #     ax.fill_between(total_dispatch.index, total_dispatch.values, load.values, alpha=0.2, where=load<total_dispatch, facecolor="green")
 # #     ax.fill_between(total_dispatch.index, total_dispatch.values, load.values, alpha=0.2, where=load>total_dispatch, facecolor="red")
-
-

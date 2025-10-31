@@ -64,7 +64,7 @@ def define_components(mod):
     fuels, including biomass. Currently the only fuel that can have a
     value of 0 for this is uranium.
 
-    f_pm25_intensity[f] describes the direct PM2.5 particulate matter 
+    f_pm25_intensity[f] describes the direct PM2.5 particulate matter
     emission intensity incurred when a fuel is combusted in units of metric
     tonnes of particulate matter per Million British Thermal Units
     (t PM2.5/MMBTU). This is non-zero for all carbon-based combustible fuels,
@@ -156,6 +156,7 @@ def load_inputs(mod, switch_data, inputs_dir):
     fuels_csv = os.path.join(inputs_dir, "fuels.csv")
     if os.path.exists(fuels_csv):
         import csv
+
         with open(fuels_csv, "r", newline="") as f:
             reader = csv.reader(f)
             rows = list(reader)

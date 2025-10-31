@@ -7,6 +7,7 @@ Switch model.
 """
 
 from pyomo.environ import *
+
 # from switch_model.tools.graph.main import graph, Figure
 
 dependencies = (
@@ -94,6 +95,8 @@ def define_components(mod):
     )
     # Register net transmission as contributing to zonal energy balance
     mod.Zone_Power_Injections.append("TXPowerNet")
+
+
 # all plotting is now done in post processing in switch_model/plot_switch_results.py
 
 # @graph(

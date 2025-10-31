@@ -17,8 +17,7 @@ module_messages = {
     # description of significant changes to particular modules other than
     # moving/renaming
     # old_module: message
-    "switch_model.generators.core.build":
-    "Beginning with Switch 2.0.7, gen_multiple_fuels.dat should "
+    "switch_model.generators.core.build": "Beginning with Switch 2.0.7, gen_multiple_fuels.dat should "
     "be replaced with gen_multiple_fuels.csv. The .csv file should have "
     "two columns: GENERATION_PROJECT and fuel. It should have one row for "
     "each allowed fuel for each multi-fuel generator."

@@ -7,6 +7,7 @@ Defines load zone parameters for the Switch model.
 import os
 from pyomo.environ import *
 from switch_model.reporting import write_table
+
 # from switch_model.tools.graph.main import graph
 
 dependencies = "switch_model.timescales"
@@ -203,6 +204,8 @@ def post_solve(instance, outdir):
             for component in (m.Zone_Power_Injections + m.Zone_Power_Withdrawals)
         ),
     )
+
+
 # all plotting is now done in post processing in switch_model/plot_switch_results.py
 # @graph(
 #     "energy_balance_duals",

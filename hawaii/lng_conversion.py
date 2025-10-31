@@ -1,4 +1,5 @@
 """Don't allow use of LNG unless the cost of conversion is paid."""
+
 from __future__ import print_function
 
 # TODO: store source data in a .dat file and read it in here
@@ -11,6 +12,7 @@ from __future__ import print_function
 from pyomo.environ import *
 from switch_model.financials import capital_recovery_factor
 from switch_model.utilities import unique_list
+
 
 def define_arguments(argparser):
     argparser.add_argument(
@@ -55,10 +57,10 @@ def define_components(m):
         m.No_LNG_In_100_RPS = Constraint(
             m.LNG_RFM_SUPPLY_TIERS,
             rule=lambda m, rfm, per, tier: (
-                m.RFMSupplyTierActivate[rfm, per, tier] == 0
-            )
-            if m.rps_target_for_period[per] >= 1.0
-            else Constraint.Skip,
+                (m.RFMSupplyTierActivate[rfm, per, tier] == 0)
+                if m.rps_target_for_period[per] >= 1.0
+                else Constraint.Skip
+            ),
         )
 
     # user can study different LNG durations by specifying a tier to activate and
@@ -168,9 +170,11 @@ def define_components(m):
     )
     m.LNG_In_Converted_Plants_Only = Constraint(
         m.LNG_GEN_TIMEPOINTS,
-        rule=lambda m, g, tp: Constraint.Skip
-        if g in m.LNG_CONVERTED_PLANTS
-        else (m.GenFuelUseRate[g, tp, "LNG"] == 0),
+        rule=lambda m, g, tp: (
+            Constraint.Skip
+            if g in m.LNG_CONVERTED_PLANTS
+            else (m.GenFuelUseRate[g, tp, "LNG"] == 0)
+        ),
     )
 
     # CODE BELOW IS DISABLED because we have abandoned the 'container' tier which cost

@@ -4,11 +4,12 @@ import os
 from pyomo.environ import Set, Param, Expression, Constraint, Suffix, NonNegativeReals
 import switch_model.reporting as reporting
 
+
 def define_components(model):
     """
     Add PM2.5 cost policies to the model, analogous to carbon_policies.
     """
- 
+
     # 1) parameter for PM2.5 cost per generator ($ per ton)
     # for any project not listed in gen_pm25_costs.csv, default cost = 0
     # NEW: for any project not listed in gen_emission_costs.csv, default cost = 0
@@ -16,7 +17,7 @@ def define_components(model):
         model.GENERATION_PROJECTS,
         within=NonNegativeReals,
         default=0.0,
-        doc="Social cost of PM2.5 ($/ton) by generator"
+        doc="Social cost of PM2.5 ($/ton) by generator",
     )
     # # 2) define PM2.5 cost expression per period
     # model.PM25Costs = Expression(
@@ -27,30 +28,32 @@ def define_components(model):
     #     ),
     #     doc="PM2.5 cost component ($) per period"
     # )
-    
+
     # 2a) per‐generator annual PM2.5 emissions (tons/year)
     model.AnnualPM25_by_gen = Expression(
-        model.GENERATION_PROJECTS, model.PERIODS,
+        model.GENERATION_PROJECTS,
+        model.PERIODS,
         rule=lambda m, g, p: sum(
             m.DispatchPM25[g, t, f] * m.tp_weight_in_year[t]
             for (g2, t, f) in m.GEN_TP_FUELS
             if g2 == g and m.tp_period[t] == p
         ),
-        doc="Annual PM2.5 emissions (tons) by generator and period"
+        doc="Annual PM2.5 emissions (tons) by generator and period",
     )
 
-     # 2b) total PM2.5 cost in each period
+    # 2b) total PM2.5 cost in each period
     model.PM25Costs = Expression(
         model.PERIODS,
         rule=lambda m, p: sum(
             m.AnnualPM25_by_gen[g, p] * m.pm25_cost_dollar_per_ton[g]
             for g in m.GENERATION_PROJECTS
         ),
-        doc="PM2.5 cost component ($) per period"
+        doc="PM2.5 cost component ($) per period",
     )
 
     # # 3) append to list of cost components so objective picks it up
     model.Cost_Components_Per_Period.append("PM25Costs")
+
 
 def load_inputs(model, switch_data, inputs_dir):
     """
@@ -61,17 +64,18 @@ def load_inputs(model, switch_data, inputs_dir):
     """
     switch_data.load_aug(
         # filename=os.path.join(inputs_dir, "gen_pm25_costs.csv"),   # OLD
-        filename=os.path.join(inputs_dir, "gen_emission_costs.csv"), # NEW
+        filename=os.path.join(inputs_dir, "gen_emission_costs.csv"),  # NEW
         index=model.GENERATION_PROJECTS,
         param=(model.pm25_cost_dollar_per_ton,),
-
         optional=True,
     )
+
 
 def post_solve(model, outdir):
     """
     Export annual PM2.5 metrics to PM25.csv
     """
+
     def get_row(m, period):
         return [
             period,

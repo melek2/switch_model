@@ -16,6 +16,7 @@ from pyomo.core.base.numvalue import native_numeric_types
 import switch_model.solve
 from switch_model.utilities import iteritems
 
+
 # This uses define_dynamic_components instead of define_components, to ensure
 # that whatever components it needs to access will already be constructed. This
 # should be placed high in the module list so that the post-solve smoothing code
@@ -188,7 +189,7 @@ def post_iterate(m):
                 "WARNING: batteries are simultaneously charged and discharged in some hours."
             )
             print("This is usually done to relax the biofuel limit.")
-            for (z, t, c, d) in double_charge:
+            for z, t, c, d in double_charge:
                 print(
                     "ChargeBattery[{z}, {t}]={c}, DischargeBattery[{z}, {t}]={d}".format(
                         z=z, t=m.tp_timestamp[t], c=c, d=d

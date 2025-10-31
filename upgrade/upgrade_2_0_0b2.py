@@ -43,9 +43,11 @@ def upgrade_input_dir(inputs_dir):
     with open(modules_path) as f:
         module_list = [line.strip() for line in f.read().splitlines()]
         final_module_list = [
-            "switch_model" + line[10:]
-            if line.startswith("switch_mod.") or line == "switch_mod"
-            else line
+            (
+                "switch_model" + line[10:]
+                if line.startswith("switch_mod.") or line == "switch_mod"
+                else line
+            )
             for line in module_list
         ]
 

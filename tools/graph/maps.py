@@ -1,6 +1,7 @@
 """
 Helper code to create maps of the WECC
 """
+
 import math
 from collections import defaultdict
 
@@ -62,8 +63,12 @@ class GraphMapTools:
 
         # 2) Required files present?
         try:
-            lz_path  = self._tools.get_file_path("maps/wecc_lz_4326.geojson", from_inputs=True)
-            ctr_path = self._tools.get_file_path("maps/wecc_centroids_4326_3.geojson", from_inputs=True)
+            lz_path = self._tools.get_file_path(
+                "maps/wecc_lz_4326.geojson", from_inputs=True
+            )
+            ctr_path = self._tools.get_file_path(
+                "maps/wecc_centroids_4326_3.geojson", from_inputs=True
+            )
         except FileNotFoundError:
             warnings.warn("Map files not found in inputs_dir/maps; skipping maps.")
             return False
@@ -71,6 +76,7 @@ class GraphMapTools:
         # 3) Readability (avoid DriverError later)
         try:
             import geopandas as gpd
+
             # Try opening quickly; close immediately
             gpd.read_file(lz_path).head(0)
             gpd.read_file(ctr_path).head(0)
@@ -231,7 +237,7 @@ class GraphMapTools:
         legend=True,
         colors=None,
         bbox_to_anchor=(1, 0),
-        labelspacing=1
+        labelspacing=1,
     ):
         """
         Graphs the data from the dataframe to a map pie chart.
@@ -313,12 +319,20 @@ class GraphMapTools:
         bins=(0, 4, 6, 8, 10, float("inf")),
         ax=None,
         title="Storage duration (h)",
-        **kwargs
+        **kwargs,
     ):
         return self.graph_points(df, bins=bins, ax=ax, title=title, **kwargs)
 
     def graph_points(
-        self, df, bins, cmap="RdPu", ax=None, size=30, title=None, legend=True, bbox_to_anchor=(1, 1)
+        self,
+        df,
+        bins,
+        cmap="RdPu",
+        ax=None,
+        size=30,
+        title=None,
+        legend=True,
+        bbox_to_anchor=(1, 1),
     ):
         """
         Graphs the data from the dataframe to a points on each cell.
@@ -452,7 +466,7 @@ class GraphMapTools:
                     skew_y = skew_factor if x2 < x1 else -skew_factor
                 else:
                     skew_slope = -(x2 - x1) / (y2 - y1)  # perpendicular to line slope
-                    skew_x = 1 / math.sqrt(skew_slope ** 2 + 1)
+                    skew_x = 1 / math.sqrt(skew_slope**2 + 1)
                     skew_x *= skew_factor
                     skew_y = skew_x * skew_slope
                     if y2 < y1:

@@ -137,9 +137,11 @@ def define_components(m):
     # and to avoid a limit of 0.0 * infinity in the constraint below)
     m.Force_Activate_Unlimited_RFM_Supply_Tier = Constraint(
         m.RFM_SUPPLY_TIERS,
-        rule=lambda m, r, p, st: (m.RFMSupplyTierActive[r, p, st] == 1)
-        if (m.rfm_supply_tier_limit[r, p, st] == infinity)
-        else Constraint.Skip,
+        rule=lambda m, r, p, st: (
+            (m.RFMSupplyTierActive[r, p, st] == 1)
+            if (m.rfm_supply_tier_limit[r, p, st] == infinity)
+            else Constraint.Skip
+        ),
     )
 
     # only allow delivery from activated tiers
@@ -149,11 +151,13 @@ def define_components(m):
     m.Enforce_RFM_Supply_Tier_Activated = Constraint(
         m.RFM_SUPPLY_TIERS,
         rule=lambda m, r, p, st: (
-            m.ConsumeFuelTier[r, p, st]
-            <= m.RFMSupplyTierActive[r, p, st] * m.rfm_supply_tier_limit[r, p, st]
-        )
-        if m.rfm_supply_tier_limit[r, p, st] < infinity
-        else Constraint.Skip,
+            (
+                m.ConsumeFuelTier[r, p, st]
+                <= m.RFMSupplyTierActive[r, p, st] * m.rfm_supply_tier_limit[r, p, st]
+            )
+            if m.rfm_supply_tier_limit[r, p, st] < infinity
+            else Constraint.Skip
+        ),
     )
 
     # total cost incurred for all the activated supply tiers

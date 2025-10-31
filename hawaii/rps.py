@@ -223,10 +223,10 @@ def define_components(m):
         m.No_New_Renewables = Constraint(
             m.NEW_GEN_BLD_YRS,
             rule=lambda m, g, bld_yr: (
-                m.GenCapacity[g, bld_yr] <= m.gen_pre_existing_capacity[g]
-            )
-            if m.gen_energy_source[g] in m.RPS_ENERGY_SOURCES
-            else Constraint.Skip,
+                (m.GenCapacity[g, bld_yr] <= m.gen_pre_existing_capacity[g])
+                if m.gen_energy_source[g] in m.RPS_ENERGY_SOURCES
+                else Constraint.Skip
+            ),
         )
 
     wind_energy_sources = {"WND"}
@@ -235,18 +235,20 @@ def define_components(m):
         m.No_New_Wind = Constraint(
             m.NEW_GEN_BLD_YRS,
             rule=lambda m, g, bld_yr: (
-                m.GenCapacity[g, bld_yr] <= m.gen_pre_existing_capacity[g]
-            )
-            if m.gen_energy_source[g] in wind_energy_sources
-            else Constraint.Skip,
+                (m.GenCapacity[g, bld_yr] <= m.gen_pre_existing_capacity[g])
+                if m.gen_energy_source[g] in wind_energy_sources
+                else Constraint.Skip
+            ),
         )
     if m.options.rps_no_wind:
         # don't build any new capacity or replace existing
         m.No_Wind = Constraint(
             m.NEW_GEN_BLD_YRS,
-            rule=lambda m, g, bld_yr: (m.BuildGen[g, bld_yr] == 0.0)
-            if m.gen_energy_source[g] in wind_energy_sources
-            else Constraint.Skip,
+            rule=lambda m, g, bld_yr: (
+                (m.BuildGen[g, bld_yr] == 0.0)
+                if m.gen_energy_source[g] in wind_energy_sources
+                else Constraint.Skip
+            ),
         )
 
     if m.options.rps_prefer_dist_pv:
@@ -570,6 +572,7 @@ def fuel_switch_at_high_rps_DispatchGenRenewableMW(m):
             m.HIGH_RPS_GEN_FOSSIL_FUEL_DISPATCH_POINTS,
             rule=lambda m, g, tp, f: m.GenFuelUseRate[g, tp, f] == 0.0,
         )
+
         # count full dispatch toward RPS during non-fossil periods, otherwise give no credit
         def rule(m, g, tp):
             if (
@@ -624,12 +627,14 @@ def binary_by_period_DispatchGenRenewableMW(m):
 
     m.Force_DispatchRenewableFlag = Constraint(
         m.GEN_WITH_FUEL_ACTIVE_PERIODS,
-        rule=lambda m, g, pe: (m.DispatchRenewableFlag[g, pe] == 0)
-        if (m.rps_target_for_period[pe] == 0.0 or m.options.rps_level != "activate")
-        else (
-            (m.DispatchRenewableFlag[g, pe] == 1)
-            if m.rps_target_for_period[pe] == 1.0
-            else Constraint.Skip
+        rule=lambda m, g, pe: (
+            (m.DispatchRenewableFlag[g, pe] == 0)
+            if (m.rps_target_for_period[pe] == 0.0 or m.options.rps_level != "activate")
+            else (
+                (m.DispatchRenewableFlag[g, pe] == 1)
+                if m.rps_target_for_period[pe] == 1.0
+                else Constraint.Skip
+            )
         ),
     )
 
@@ -686,12 +691,14 @@ def binary_by_timeseries_DispatchGenRenewableMW(m):
     # force flag on or off depending on RPS status (to speed computation)
     m.Force_DispatchRenewableFlag = Constraint(
         m.GEN_WITH_FUEL_ACTIVE_TIMESERIES,
-        rule=lambda m, g, ts: (m.DispatchRenewableFlag[g, ts] == 0)
-        if m.rps_target_for_period[m.ts_period[ts]] == 0.0
-        else (
-            (m.DispatchRenewableFlag[g, ts] == 1)
-            if m.rps_target_for_period[m.ts_period[ts]] == 1.0
-            else Constraint.Skip
+        rule=lambda m, g, ts: (
+            (m.DispatchRenewableFlag[g, ts] == 0)
+            if m.rps_target_for_period[m.ts_period[ts]] == 0.0
+            else (
+                (m.DispatchRenewableFlag[g, ts] == 1)
+                if m.rps_target_for_period[m.ts_period[ts]] == 1.0
+                else Constraint.Skip
+            )
         ),
     )
 
@@ -713,18 +720,20 @@ def binary_by_timeseries_DispatchGenRenewableMW(m):
     # prevent use of non-renewable fuels during renewable timepoints
     m.Enforce_DispatchRenewableFlag = Constraint(
         m.GEN_TP_FUELS,
-        rule=lambda m, g, tp, f: Constraint.Skip
-        if m.f_rps_eligible[f]
-        else (
-            # original code, rewritten to get numerical parts on rhs
-            # m.GenFuelUseRate[g, tp, f]
-            # <=
-            # (1-m.DispatchRenewableFlag[g, m.tp_ts[tp]]) * m.gen_capacity_limit_mw[g] * m.gen_full_load_heat_rate[g]
-            m.GenFuelUseRate[g, tp, f]
-            + m.DispatchRenewableFlag[g, m.tp_ts[tp]]
-            * m.gen_capacity_limit_mw[g]
-            * m.gen_full_load_heat_rate[g]
-            <= m.gen_capacity_limit_mw[g] * m.gen_full_load_heat_rate[g]
+        rule=lambda m, g, tp, f: (
+            Constraint.Skip
+            if m.f_rps_eligible[f]
+            else (
+                # original code, rewritten to get numerical parts on rhs
+                # m.GenFuelUseRate[g, tp, f]
+                # <=
+                # (1-m.DispatchRenewableFlag[g, m.tp_ts[tp]]) * m.gen_capacity_limit_mw[g] * m.gen_full_load_heat_rate[g]
+                m.GenFuelUseRate[g, tp, f]
+                + m.DispatchRenewableFlag[g, m.tp_ts[tp]]
+                * m.gen_capacity_limit_mw[g]
+                * m.gen_full_load_heat_rate[g]
+                <= m.gen_capacity_limit_mw[g] * m.gen_full_load_heat_rate[g]
+            )
         ),
     )
 
@@ -751,13 +760,15 @@ def advanced2_DispatchGenRenewableMW(m):
     # prevent use of non-renewable fuels during renewable timepoints
     m.Enforce_DispatchRenewableFlag = Constraint(
         m.GEN_TP_FUELS,
-        rule=lambda m, g, tp, f: Constraint.Skip
-        if m.f_rps_eligible[f]
-        else (
-            m.GenFuelUseRate[g, tp, f]
-            <= (1 - m.DispatchRenewableFlag[g, tp])
-            * m.gen_capacity_limit_mw[g]
-            * m.gen_full_load_heat_rate[g]
+        rule=lambda m, g, tp, f: (
+            Constraint.Skip
+            if m.f_rps_eligible[f]
+            else (
+                m.GenFuelUseRate[g, tp, f]
+                <= (1 - m.DispatchRenewableFlag[g, tp])
+                * m.gen_capacity_limit_mw[g]
+                * m.gen_full_load_heat_rate[g]
+            )
         ),
     )
 

@@ -106,6 +106,7 @@ def define_components(mod):
     mod.have_minimal_hydro_params = BuildCheck(
         mod.HYDRO_GEN_TS, rule=lambda m, g, ts: (g, ts) in m.HYDRO_GEN_TS_RAW
     )
+
     # Generate a warning if the input files specify timeseries for renewable
     # plant capacity factors that extend beyond the expected lifetime of the
     # plant. This could be caused by simple logic to build input files, or
@@ -114,7 +115,7 @@ def define_components(mod):
     def _warn_on_extra_HYDRO_GEN_TS(m):
         extra_indexes = m.HYDRO_GEN_TS_RAW - m.HYDRO_GEN_TS
         extraneous = {g: [] for (g, t) in extra_indexes}
-        for (g, t) in extra_indexes:
+        for g, t in extra_indexes:
             extraneous[g].append(t)
         pprint = "\n".join(
             "* {}: {} to {}".format(g, min(tps), max(tps))

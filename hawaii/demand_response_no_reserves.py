@@ -10,6 +10,7 @@ it back to the bid function when needed.
 note: we also take advantage of this assumption and store a reference to the
 current demand_module in this module (rather than storing it in the model itself)
 """
+
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
@@ -150,9 +151,11 @@ def define_components(m):
     m.DR_Convex_Bid_Weight = Constraint(
         m.LOAD_ZONES,
         m.TIMESERIES,
-        rule=lambda m, z, ts: Constraint.Skip
-        if len(m.DR_BID_LIST) == 0
-        else (sum(m.DRBidWeight[b, z, ts] for b in m.DR_BID_LIST) == 1),
+        rule=lambda m, z, ts: (
+            Constraint.Skip
+            if len(m.DR_BID_LIST) == 0
+            else (sum(m.DRBidWeight[b, z, ts] for b in m.DR_BID_LIST) == 1)
+        ),
     )
 
     # Since we don't have differentiated prices for each zone, we have to use the same
@@ -706,7 +709,7 @@ def add_bids(m, bids):
     # m.DR_BIDS_LZ_TP.reconstruct()
     # m.DR_BIDS_LZ_TS.reconstruct()
     # add the bids for each load zone and timepoint to the dr_bid list
-    for (z, ts, prices, demand, wtp) in bids:
+    for z, ts, prices, demand, wtp in bids:
         # record the private benefit
         m.dr_bid_benefit[b, z, ts] = wtp
         # record the level of demand for each timepoint
@@ -906,9 +909,11 @@ def write_results(m):
             electricity_marginal_cost(m, z, t),
             m.dr_price[last_bid, z, t],
             m.dr_bid[last_bid, z, t],
-            "peak"
-            if m.ts_scale_to_year[m.tp_ts[t]] < 0.5 * avg_ts_scale
-            else "typical",
+            (
+                "peak"
+                if m.ts_scale_to_year[m.tp_ts[t]] < 0.5 * avg_ts_scale
+                else "typical"
+            ),
             m.base_data_dict[z, t][0],
             m.base_data_dict[z, t][1],
         ),

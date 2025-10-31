@@ -80,11 +80,12 @@ def write_table(instance, *indexes, **kwargs):
         w = csv.writer(f, dialect="switch-csv")
         # write header row
         w.writerow(list(headings))
+
         # write the data
         def format_row(row):
             row = [value(v) for v in row]
             sig_digits = "{0:." + str(digits) + "g}"
-            for (i, v) in enumerate(row):
+            for i, v in enumerate(row):
                 if isinstance(v, float):
                     if abs(v) < 1e-10:
                         row[i] = 0
@@ -123,7 +124,8 @@ def write_table(instance, *indexes, **kwargs):
 def unpack_elements(items):
     """Unpack any multi-element objects within items, to make a single flat list.
     Note: this is not recursive.
-    This is used to flatten the product of a multi-dimensional index with anything else."""
+    This is used to flatten the product of a multi-dimensional index with anything else.
+    """
     l = []
     for x in items:
         if isinstance(x, string_types):
@@ -278,4 +280,3 @@ def save_cost_components(m, outdir):
         values=lambda m, c: (c, cost_dict[c]),
         digits=16,
     )
-

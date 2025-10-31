@@ -9,6 +9,7 @@ from pyomo.environ import *
 from switch_model.financials import capital_recovery_factor as crf
 from switch_model.reporting import write_table
 from switch_model.utilities import unique_list
+
 # from switch_model.tools.graph.main import graph
 
 dependencies = (
@@ -905,6 +906,8 @@ def post_solve(m, outdir):
             m.GenFixedOMCosts[g, p],
         ),
     )
+
+
 # all plotting is now done in post processing in switch_model/plot_switch_results.py
 # @graph(
 #     "installed_capacity_by_tech",

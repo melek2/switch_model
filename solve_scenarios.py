@@ -158,7 +158,7 @@ def main(args=None):
     # previously being solved by this job but were interrupted
     unlock_running_scenarios()
 
-    for (scenario_name, args) in scenarios_to_run():
+    for scenario_name, args in scenarios_to_run():
         logger.warn(  # not strictly a warning, but often nice to see in the log
             "\n\n=======================================================================\n"
             + "running scenario {s}\n".format(s=scenario_name)
@@ -183,6 +183,7 @@ def main(args=None):
         # since this script has built-in queue management.
 
         mark_completed(scenario_name)
+
 
 def run_scenario(args):
     # reactivate stdin in subprocess
