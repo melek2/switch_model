@@ -137,25 +137,33 @@ def define_components(mod):
     generators that implement Carbon Capture and Sequestration. This does
     not yet support multi-fuel generators.
 
+    gen_pm25_intensity[g in GENERATION_PROJECTS] is an optional
+    generator-level PM2.5 emission intensity in units of tonnes/MMBtu.
+    This parameter allows individual generators to override the
+    fuel-level PM2.5 intensity specified in fuels.csv. If the value for
+    a given generator is left at its default of 0.0, the model will fall
+    back to the corresponding f_pm25_intensity[f] for the fuel consumed
+    by that generator. Values are loaded from
+    inputs/gen_pm25_costs.csv (column: gen_pm25_intensity).
+    
     DispatchPM25[(g, t, f) in GEN_TP_FUELS] is the instantaneous
-    primary PM2.5 emission rate from generator g at timepoint t
-    using fuel f. Units are the tonnes/hour.
-    It is computed as:
-        DispatchPM25[g, t, f] = GenFuelUseRate[g, t, f] * intensity
-    where:
-        - GenFuelUseRate[g, t, f] is the fuel use rate (MMBtu/hour), and
-        - intensity is a per-generator override if provided and > 0,
-        otherwise the fuel-level default from fuels.csv:
-            intensity =
-                gen_pm25_intensity[g]  (tonnes/MMBtu) if > 0,
-                else f_pm25_intensity[f] (tonnes/MMBtu).
-    (If particulate-control parameters are added in the future, a
-    capture term can multiply the intensity.)
+    PM2.5 emission rate from generator g at timepoint t when using fuel f,
+    expressed in tonnes per hour. It is calculated as
+    DispatchPM25[g, t, f] = GenFuelUseRate[g, t, f] * intensity,
+    where GenFuelUseRate[g, t, f] is the fuel consumption rate in
+    MMBtu/hour, and intensity is determined per generator as
+    gen_pm25_intensity[g] (tonnes/MMBtu) if greater than 0, otherwise
+    f_pm25_intensity[f] (tonnes/MMBtu) from fuels.csv. This rule ensures
+    that generator-specific emission factors, when available, take
+    precedence over fuel-level defaults.
 
-    AnnualPM25[p in PERIODS] is the total system-wide PM2.5 emissions for
-    period p in base mass units per year (default: tonnes/year):
-        AnnualPM25[p] = Σ_(g,t,f) DispatchPM25[g, t, f] * tp_weight_in_year[t]
-        for all (g,t,f) with tp_period[t] = p
+    AnnualPM25[p in PERIODS] is the total PM2.5 emissions aggregated
+    over all generators, fuels, and timepoints within period p,
+    expressed in tonnes per year. It is computed as
+    AnnualPM25[p] = Σ_(g,t,f) DispatchPM25[g, t, f] * tp_weight_in_year[t]
+    for all (g, t, f) with tp_period[t] = p. This expression scales each
+    timepoint’s hourly emissions by its representative hours in a typical
+    year to obtain annual totals.
 
     AnnualEmissions[p in PERIODS]:The system's annual emissions, in metric
     tonnes of CO2 per year.
