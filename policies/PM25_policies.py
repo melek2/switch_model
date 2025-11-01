@@ -17,7 +17,7 @@ objective function of the form:
 where:
     - `AnnualPM25_by_gen[g, p]` represents total PM2.5 emissions (tons/year)
       produced by generator g in period p.
-    - `pm25_cost_dollar_per_ton[g]` is the social cost of PM2.5 (in $/ton)
+    - `pm25_cost_dollar_per_ton[g]` is the health cost of PM2.5 (in $/ton)
       assigned to generator g.
 
 If no value is specified for a generator, the default PM2.5 cost is zero,
@@ -35,7 +35,7 @@ def define_components(model):
     Define PM2.5-related parameters and expressions for the model.
 
     This function introduces:
-        1. A parameter `pm25_cost_dollar_per_ton[g]` that stores the social cost
+        1. A parameter `pm25_cost_dollar_per_ton[g]` that stores the health cost
            of PM2.5 emissions per generator (in $/ton).
         2. An expression `AnnualPM25_by_gen[g, p]` that calculates the annual
            PM2.5 emissions (tons) produced by each generator g in each period p.
