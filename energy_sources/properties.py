@@ -80,6 +80,14 @@ def define_components(mod):
     including biomass. Currently, the only fuel that can have a value of 0 
     for this parameter is uranium.
 
+    f_voc_intensity[f] describes the direct Volatile organic compound (VOC) emission 
+    intensity resulting from the combustion of a fuel, expressed in metric 
+    tonnes of VOC per Million British Thermal Units (tVOC/MMBTU). This 
+    represents primary gaseous emissions formed during the combustion 
+    process. It is non-zero for all carbon-based combustible fuels, 
+    including biomass. Currently, the only fuel that can have a value of 0 
+    for this parameter is uranium.
+
     f_upstream_co2_intensity[f] is the carbon emissions attributable to
     a fuel before it is consumed in units of tCO2/MMBTU. For sustainably
     harvested biomass, this can be negative to reflect the CO2 that was
@@ -115,6 +123,7 @@ def define_components(mod):
 
     mod.f_pm25_intensity = Param(mod.FUELS, within=NonNegativeReals, default=0)
     mod.f_nox_intensity = Param(mod.FUELS, within=NonNegativeReals, default=0)
+    mod.f_voc_intensity = Param(mod.FUELS, within=NonNegativeReals, default=0)
     # Ensure that fuel and non-fuel sets have no overlap.
     mod.e_source_is_fuel_or_not_check = BuildCheck(
         rule=lambda m: len(m.FUELS & m.NON_FUEL_ENERGY_SOURCES) == 0
@@ -150,7 +159,7 @@ def load_inputs(mod, switch_data, inputs_dir):
         energy_source
 
     fuels.csv
-        fuel, co2_intensity, upstream_co2_intensity, f_pm25_intensity, f_nox_intensity
+        fuel, co2_intensity, upstream_co2_intensity, f_pm25_intensity, f_nox_intensity, f_voc_intensity
 
     """
     # Include select in each load() function so that it will check out
@@ -190,10 +199,19 @@ def load_inputs(mod, switch_data, inputs_dir):
                     writer = csv.writer(f)
                     writer.writerows([header] + rows[1:])
                 print(f"Added 'f_nox_intensity' to {fuels_csv} with '.' values")
+            if "f_voc_intensity" not in header:
+                header.append("f_voc_intensity")
+                # append '.' to every data row
+                for i in range(1, len(rows)):
+                    rows[i].append(".")
+                with open(fuels_csv, "w", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerows([header] + rows[1:])
+                print(f"Added 'f_voc_intensity' to {fuels_csv} with '.' values")
     switch_data.load_aug(
         optional=True,
         filename=os.path.join(inputs_dir, "fuels.csv"),
-        select=("fuel", "co2_intensity", "upstream_co2_intensity", "f_pm25_intensity","f_nox_intensity"),
+        select=("fuel", "co2_intensity", "upstream_co2_intensity", "f_pm25_intensity","f_nox_intensity", "f_voc_intensity"),
         index=mod.FUELS,
-        param=(mod.f_co2_intensity, mod.f_upstream_co2_intensity, mod.f_pm25_intensity, mod.f_nox_intensity),
+        param=(mod.f_co2_intensity, mod.f_upstream_co2_intensity, mod.f_pm25_intensity, mod.f_nox_intensity, mod.f_voc_intensity),
     )

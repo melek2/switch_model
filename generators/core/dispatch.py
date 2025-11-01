@@ -140,6 +140,7 @@ def define_components(mod):
     AnnualEmissions[p in PERIODS]:The system's annual emissions, in metric
     tonnes of CO2 per year.
 
+    Particulate Matter (PM2.5) terms:
     gen_pm25_intensity[g in GENERATION_PROJECTS] is an optional
     generator-level PM2.5 emission intensity in units of tonnes/MMBtu.
     This parameter allows individual generators to override the
@@ -168,14 +169,15 @@ def define_components(mod):
     timepoint’s hourly emissions by its representative hours in a typical
     year to obtain annual totals.
 
-    gen_pm25_intensity[g in GENERATION_PROJECTS] is an optional
-    generator-level PM2.5 emission intensity in units of tonnes/MMBtu.
+    Nitrogen oxides (NOx) terms:
+    gen_nox_intensity[g in GENERATION_PROJECTS] is an optional
+    generator-level NOx emission intensity in units of tonnes/MMBtu.
     This parameter allows individual generators to override the
-    fuel-level PM2.5 intensity specified in fuels.csv. If the value for
+    fuel-level NOx intensity specified in fuels.csv. If the value for
     a given generator is left at its default of 0.0, the model will fall
-    back to the corresponding f_pm25_intensity[f] for the fuel consumed
+    back to the corresponding f_nox_intensity[f] for the fuel consumed
     by that generator. Values are loaded from
-    inputs/gen_emission_costs.csv (column: gen_pm25_intensity).
+    inputs/gen_emission_costs.csv (column: gen_nox_intensity).
     
     DispatchNOx[(g, t, f) in GEN_TP_FUELS] is the instantaneous
     NOx emission rate from generator g at timepoint t when using fuel f,
@@ -183,8 +185,8 @@ def define_components(mod):
     DispatchNOx[g, t, f] = GenFuelUseRate[g, t, f] * intensity,
     where GenFuelUseRate[g, t, f] is the fuel consumption rate in
     MMBtu/hour, and intensity is determined per generator as
-    gen_pm25_intensity[g] (tonnes/MMBtu) if greater than 0, otherwise
-    f_pm25_intensity[f] (tonnes/MMBtu) from fuels.csv. This rule ensures
+    gen_nox_intensity[g] (tonnes/MMBtu) if greater than 0, otherwise
+    f_nox_intensity[f] (tonnes/MMBtu) from fuels.csv. This rule ensures
     that generator-specific emission factors, when available, take
     precedence over fuel-level defaults.
 
@@ -192,6 +194,26 @@ def define_components(mod):
     over all generators, fuels, and timepoints within period p,
     expressed in tonnes per year. It is computed as
     AnnualNOx[p] = Σ_(g,t,f) DispatchNOx[g, t, f] * tp_weight_in_year[t]
+    for all (g, t, f) with tp_period[t] = p. This expression scales each
+    timepoint’s hourly emissions by its representative hours in a typical
+    year to obtain annual totals.
+
+    Volatile Organic Compound (VOC) terms:
+    DispatchVOC[(g, t, f) in GEN_TP_FUELS] is the instantaneous
+    VOC emission rate from generator g at timepoint t when using fuel f,
+    expressed in tonnes per hour. It is calculated as
+    DispatchVOC[g, t, f] = GenFuelUseRate[g, t, f] * intensity,
+    where GenFuelUseRate[g, t, f] is the fuel consumption rate in
+    MMBtu/hour, and intensity is determined per generator as
+    gen_voc_intensity[g] (tonnes/MMBtu) if greater than 0, otherwise
+    f_voc_intensity[f] (tonnes/MMBtu) from fuels.csv. This rule ensures
+    that generator-specific emission factors, when available, take
+    precedence over fuel-level defaults.
+
+    AnnualVOC[p in PERIODS] is the total VOC emissions aggregated
+    over all generators, fuels, and timepoints within period p,
+    expressed in tonnes per year. It is computed as
+    AnnualVOC[p] = Σ_(g,t,f) DispatchVOC[g, t, f] * tp_weight_in_year[t]
     for all (g, t, f) with tp_period[t] = p. This expression scales each
     timepoint’s hourly emissions by its representative hours in a typical
     year to obtain annual totals.
@@ -534,7 +556,58 @@ def define_components(mod):
         rule=annual_nox_rule,
         doc="Total NOx emissions (in base mass units per year) aggregated over all generators and fuels.",
     )    
+    # VOC emission rate rule
+    # Units:
+    #   - GenFuelUseRate[g,t,f]: MMBtu/hour
+    #   - gen_voc_intensity[g], f_voc_intensity[f]: tonnes/MMBtu
+    #   => DispatchVOC[g,t,f]: tonnes/hour
+    # Fallback (per generator):
+    #   use gen_VOC_intensity[g] if > 0 else f_voc_intensity[f].
+    already_reported_voc = set()
+    def DispatchVOC_rule(m, g, t, f):
+        if m.gen_voc_intensity[g] > 0:
+            intensity = m.gen_voc_intensity[g]
+        else:
+            intensity = m.f_voc_intensity[f]
+            # Only print once per generator if the fallback value is nonzero
+            if g not in already_reported_voc and value(m.f_voc_intensity[f]) != 0:
+                print(
+                    f"[INFO - VOC] No gen_voc_intensity for {g} found (or reported value = 0) in gen_emission_costs.csv. "
+                    f"Using nonzero fallback f_voc_intensity[{f}] = {value(m.f_voc_intensity[f])}."
+                )
+                already_reported_voc.add(g)
+        return m.GenFuelUseRate[g, t, f] * intensity
 
+    # Generator-level override (optional). If left at default 0.0, the model
+    # falls back to f_voc_intensity[f] for that generator.
+    # Loaded via load_inputs() from inputs/gen_emission_costs.csv.
+    mod.gen_voc_intensity = Param(
+        mod.GENERATION_PROJECTS,
+        within=NonNegativeReals,
+        default=0.0,
+        doc="Generator-level VOC intensity (tonnes/MMBtu).",
+    )
+
+    # Instantaneous VOC emission rate (tonnes/hour) by (g,t,f)
+    mod.DispatchVOC = Expression(
+        mod.GEN_TP_FUELS,
+        rule=DispatchVOC_rule,
+        doc="VOC emission rate (mass per hour) from each generator, fuel, and timepoint.",
+    )
+
+    # Annual VOC aggregation by period (tonnes/year)
+    def annual_voc_rule(m, period):
+        return sum(
+            m.DispatchVOC[g, t, f] * m.tp_weight_in_year[t]
+            for (g, t, f) in m.GEN_TP_FUELS
+            if m.tp_period[t] == period
+        )
+
+    mod.AnnualVOC = Expression(
+        mod.PERIODS,
+        rule=annual_voc_rule,
+        doc="Total VOC emissions (in base mass units per year) aggregated over all generators and fuels.",
+    )    
     mod.GenVariableOMCostsInTP = Expression(
         mod.TIMEPOINTS,
         rule=lambda m, t: sum(
@@ -566,15 +639,20 @@ def load_inputs(mod, switch_data, inputs_dir):
         param=(mod.gen_max_capacity_factor,),
     )
 
-    # Loads per-generator PM2.5 and NOx override from inputs/gen_emission_costs.csv.
-    # Expect a column named 'gen_pm25_intensity' and 'gen_NOx_intensity_ton_per_MMBtu
-    # both in (tonnes/MMBtu) keyed by GENERATION_PROJECT.
+    # Loads per-generator PM2.5 and NOx override from inputs/gen_emission_costs.csv,
+    # Expect columns named:
+    # 'gen_pm25_intensity_ton_per_MMBtu', 'gen_NOx_intensity_ton_per_MMBtu', 'gen_VOC_intensity_ton_per_MMBtu'
+    # all in (tonnes/MMBtu) keyed by GENERATION_PROJECT.
     switch_data.load_aug(
         optional=True,
         filename=os.path.join(inputs_dir, "gen_emission_costs.csv"),
-        select=("GENERATION_PROJECT", "gen_pm25_intensity_ton_per_MMBtu","gen_NOx_intensity_ton_per_MMBtu"),
+        select=("GENERATION_PROJECT", 
+                "gen_pm25_intensity_ton_per_MMBtu",
+                "gen_NOx_intensity_ton_per_MMBtu",
+                "gen_VOC_intensity_ton_per_MMBtu"
+                ),
         index=mod.GENERATION_PROJECTS,
-        param=(mod.gen_pm25_intensity,mod.gen_nox_intensity),
+        param=(mod.gen_pm25_intensity,mod.gen_nox_intensity,mod.gen_voc_intensity),
     )
 
 
@@ -691,6 +769,26 @@ def post_solve(instance, outdir):
                 if instance.gen_uses_fuel[g]
                 else 0.0
             ),
+            "DispatchVOC_ton_per_hr": (  # values are in tonnes (not grams), consistent with VOC intensity units in tonnes/MMBtu.
+                value(
+                    sum(
+                        instance.DispatchVOC[g, t, f]
+                        for f in instance.FUELS_FOR_GEN[g]
+                    )
+                )
+                if instance.gen_uses_fuel[g]
+                else 0.0
+            ),
+            "DispatchVOC_ton_per_typical_yr": (  # values are in tonnes (not grams), consistent with VOC intensity units in tonnes/MMBtu.
+                value(
+                    sum(
+                        instance.DispatchVOC[g, t, f] * instance.tp_weight_in_year[t]
+                        for f in instance.FUELS_FOR_GEN[g]
+                    )
+                )
+                if instance.gen_uses_fuel[g]
+                else 0.0
+            ),
             "GenCapacity_MW": value(instance.GenCapacity[g, p]),
             "GenCapitalCosts": value(instance.GenCapitalCosts[g, p]),
             "GenFixedOMCosts": value(instance.GenFixedOMCosts[g, p]),
@@ -724,6 +822,7 @@ def post_solve(instance, outdir):
         "DispatchEmissions_tCO2_per_typical_yr",
         "DispatchPM25_ton_per_typical_yr",
         "DispatchNOx_ton_per_typical_yr",
+        "DispatchVOC_ton_per_typical_yr",
         "GenCapacity_MW",
         "GenCapitalCosts",
         "GenFixedOMCosts",
