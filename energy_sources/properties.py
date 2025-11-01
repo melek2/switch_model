@@ -64,12 +64,21 @@ def define_components(mod):
     fuels, including biomass. Currently the only fuel that can have a
     value of 0 for this is uranium.
 
-    f_pm25_intensity[f] describes the direct PM2.5 particulate matter
-    emission intensity incurred when a fuel is combusted in units of metric
-    tonnes of particulate matter per Million British Thermal Units
-    (t PM2.5/MMBTU). This is non-zero for all carbon-based combustible fuels,
-    including biomass. Currently the only fuel that can have a value of 0
-    for this is uranium.
+    f_pm25_intensity[f] describes the direct fine particulate matter (PM2.5)
+    emission intensity resulting from the combustion of a fuel, expressed in 
+    metric tonnes of PM2.5 per Million British Thermal Units (tPM2.5/MMBTU). 
+    This represents primary particulate emissions directly released during 
+    fuel combustion. It is non-zero for all carbon-based combustible fuels, 
+    including biomass. Currently, the only fuel that can have a value of 0 
+    for this parameter is uranium.
+
+    f_nox_intensity[f] describes the direct nitrogen oxides (NOₓ) emission 
+    intensity resulting from the combustion of a fuel, expressed in metric 
+    tonnes of NOₓ per Million British Thermal Units (tNOₓ/MMBTU). This 
+    represents primary gaseous emissions formed during the combustion 
+    process. It is non-zero for all carbon-based combustible fuels, 
+    including biomass. Currently, the only fuel that can have a value of 0 
+    for this parameter is uranium.
 
     f_upstream_co2_intensity[f] is the carbon emissions attributable to
     a fuel before it is consumed in units of tCO2/MMBTU. For sustainably
@@ -105,7 +114,7 @@ def define_components(mod):
     mod.min_data_check("f_co2_intensity")
 
     mod.f_pm25_intensity = Param(mod.FUELS, within=NonNegativeReals, default=0)
-    # mod.min_data_check("f_pm25_intensity")
+    mod.f_nox_intensity = Param(mod.FUELS, within=NonNegativeReals, default=0)
     # Ensure that fuel and non-fuel sets have no overlap.
     mod.e_source_is_fuel_or_not_check = BuildCheck(
         rule=lambda m: len(m.FUELS & m.NON_FUEL_ENERGY_SOURCES) == 0
@@ -141,7 +150,7 @@ def load_inputs(mod, switch_data, inputs_dir):
         energy_source
 
     fuels.csv
-        fuel, co2_intensity, upstream_co2_intensity, f_pm25_intensity
+        fuel, co2_intensity, upstream_co2_intensity, f_pm25_intensity, f_nox_intensity
 
     """
     # Include select in each load() function so that it will check out
@@ -172,10 +181,19 @@ def load_inputs(mod, switch_data, inputs_dir):
                     writer = csv.writer(f)
                     writer.writerows([header] + rows[1:])
                 print(f"Added 'f_pm25_intensity' to {fuels_csv} with '.' values")
+            if "f_nox_intensity" not in header:
+                header.append("f_nox_intensity")
+                # append '.' to every data row
+                for i in range(1, len(rows)):
+                    rows[i].append(".")
+                with open(fuels_csv, "w", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerows([header] + rows[1:])
+                print(f"Added 'f_nox_intensity' to {fuels_csv} with '.' values")
     switch_data.load_aug(
         optional=True,
         filename=os.path.join(inputs_dir, "fuels.csv"),
-        select=("fuel", "co2_intensity", "upstream_co2_intensity", "f_pm25_intensity"),
+        select=("fuel", "co2_intensity", "upstream_co2_intensity", "f_pm25_intensity","f_nox_intensity"),
         index=mod.FUELS,
-        param=(mod.f_co2_intensity, mod.f_upstream_co2_intensity, mod.f_pm25_intensity),
+        param=(mod.f_co2_intensity, mod.f_upstream_co2_intensity, mod.f_pm25_intensity, mod.f_nox_intensity),
     )
