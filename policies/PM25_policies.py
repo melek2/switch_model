@@ -121,42 +121,65 @@ def load_inputs(model, switch_data, inputs_dir):
 
 def post_solve(model, outdir):
     """
-    Export annual PM2.5 emissions and costs after model solution.
+    Export annual PM2.5 emissions and costs after the model solves.
 
-    This function generates a CSV file `PM25.csv` containing annual PM2.5
-    emissions and associated monetary costs for each period.
+    This writes two CSV files summarizing PM2.5 outcomes by period and by generator.
 
-    Output file
-    ------------
-    PM25.csv
-        Columns:
-            PERIOD,
-            AnnualPM25_base_units,
-            PM25Cost_dollar_per_period
+    Assumptions and units
+    ---------------------
+    GenFuelUseRate is in MMBtu_per_hour.
+    gen_pm25_intensity and f_pm25_intensity are in ton_per_MMBtu.
+    tp_weight_in_year is in hours_per_period.
+    Therefore AnnualPM25 is in ton_per_period and PM25Cost is in dollars_per_period.
+
+    Outputs
+    -------
+    1) PM25.csv
+       Columns:
+         PERIOD
+         AnnualPM25_ton
+         PM25Cost_dollar_per_period
+
+    2) PM25_by_generator.csv
+       Columns:
+         GENERATION_PROJECT
+         PERIOD
+         AnnualPM25_ton
+         PM25Cost_dollar_per_period
 
     Parameters
     ----------
     model : pyomo.environ.ConcreteModel
-        The solved model instance.
+        Solved model instance containing AnnualPM25, AnnualPM25_by_gen, and PM25Costs.
     outdir : str
-        Directory path where the output file will be written.
+        Directory path where output files will be written.
     """
 
     def get_row(m, period):
+        # total PM2.5 emitted and its cost in the given period
         return [
             period,
-            m.AnnualPM25[period],  # total PM2.5 emitted in base units
-            m.PM25Costs[period],   # total PM2.5 cost ($)
+            m.AnnualPM25[period],    # ton per period
+            m.PM25Costs[period],     # dollar per period
         ]
 
     reporting.write_table(
         model,
         model.PERIODS,
         output_file=os.path.join(outdir, "PM25.csv"),
-        headings=(
-            "PERIOD",
-            "AnnualPM25_base_units",
-            "PM25Cost_dollar_per_period",
-        ),
+        headings=("PERIOD", "AnnualPM25_ton", "PM25Cost_dollar_per_period"),
         values=get_row,
+    )
+
+    reporting.write_table(
+        model,
+        model.GENERATION_PROJECTS * model.PERIODS,
+        output_file=os.path.join(outdir, "PM25_by_generator.csv"),
+        headings=("GENERATION_PROJECT", "PERIOD", "AnnualPM25_ton", "PM25Cost_dollar_per_period"),
+        values=lambda m, g, p: (
+            g,
+            p,
+            m.AnnualPM25_by_gen[g, p],
+            m.AnnualPM25_by_gen[g, p] * m.pm25_cost_dollar_per_ton[g],
+        ),
     )
