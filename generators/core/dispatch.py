@@ -218,6 +218,26 @@ def define_components(mod):
     timepoint’s hourly emissions by its representative hours in a typical
     year to obtain annual totals.
 
+    Sulfur dioxide (SO2) terms:
+    DispatchSO2[(g, t, f) in GEN_TP_FUELS] is the instantaneous
+    SO2 emission rate from generator g at timepoint t when using fuel f,
+    expressed in tonnes per hour. It is calculated as
+    DispatchSO2[g, t, f] = GenFuelUseRate[g, t, f] * intensity,
+    where GenFuelUseRate[g, t, f] is the fuel consumption rate in
+    MMBtu/hour, and intensity is determined per generator as
+    gen_so2_intensity[g] (tonnes/MMBtu) if greater than 0, otherwise
+    f_so2_intensity[f] (tonnes/MMBtu) from fuels.csv. This rule ensures
+    that generator-specific emission factors, when available, take
+    precedence over fuel-level defaults.
+
+    AnnualSO2[p in PERIODS] is the total SO2 emissions aggregated
+    over all generators, fuels, and timepoints within period p,
+    expressed in tonnes per year. It is computed as
+    AnnualSO2[p] = Σ_(g,t,f) DispatchSO2[g, t, f] * tp_weight_in_year[t]
+    for all (g, t, f) with tp_period[t] = p. This expression scales each
+    timepoint’s hourly emissions by its representative hours in a typical
+    year to obtain annual totals.
+    
     Flexible baseload support for plants that can ramp slowly over the
     course of days. These kinds of generators can provide important
     seasonal support in high renewable and low emission futures.
@@ -608,6 +628,59 @@ def define_components(mod):
         rule=annual_voc_rule,
         doc="Total VOC emissions (in base mass units per year) aggregated over all generators and fuels.",
     )    
+    # SO2 emission rate rule
+    # Units:
+    #   - GenFuelUseRate[g,t,f]: MMBtu/hour
+    #   - gen_so2_intensity[g], f_so2_intensity[f]: tonnes/MMBtu
+    #   => DispatchSO2[g,t,f]: tonnes/hour
+    # Fallback (per generator):
+    #   use gen_SO2_intensity[g] if > 0 else f_so2_intensity[f].
+    already_reported_so2 = set()
+    def DispatchSO2_rule(m, g, t, f):
+        if m.gen_so2_intensity[g] > 0:
+            intensity = m.gen_so2_intensity[g]
+        else:
+            intensity = m.f_so2_intensity[f]
+            # Only print once per generator if the fallback value is nonzero
+            if g not in already_reported_so2 and value(m.f_so2_intensity[f]) != 0:
+                print(
+                    f"[INFO - SO2] No gen_so2_intensity for {g} found (or reported value = 0) in gen_emission_costs.csv. "
+                    f"Using nonzero fallback f_so2_intensity[{f}] = {value(m.f_so2_intensity[f])}."
+                )
+                already_reported_so2.add(g)
+        return m.GenFuelUseRate[g, t, f] * intensity
+
+    # Generator-level override (optional). If left at default 0.0, the model
+    # falls back to f_so2_intensity[f] for that generator.
+    # Loaded via load_inputs() from inputs/gen_emission_costs.csv.
+    mod.gen_so2_intensity = Param(
+        mod.GENERATION_PROJECTS,
+        within=NonNegativeReals,
+        default=0.0,
+        doc="Generator-level SO2 intensity (tonnes/MMBtu).",
+    )
+
+    # Instantaneous SO2 emission rate (tonnes/hour) by (g,t,f)
+    mod.DispatchSO2 = Expression(
+        mod.GEN_TP_FUELS,
+        rule=DispatchSO2_rule,
+        doc="SO2 emission rate (mass per hour) from each generator, fuel, and timepoint.",
+    )
+
+    # Annual SO2 aggregation by period (tonnes/year)
+    def annual_so2_rule(m, period):
+        return sum(
+            m.DispatchSO2[g, t, f] * m.tp_weight_in_year[t]
+            for (g, t, f) in m.GEN_TP_FUELS
+            if m.tp_period[t] == period
+        )
+
+    mod.AnnualSO2 = Expression(
+        mod.PERIODS,
+        rule=annual_so2_rule,
+        doc="Total SO2 emissions (in base mass units per year) aggregated over all generators and fuels.",
+    )    
+
     mod.GenVariableOMCostsInTP = Expression(
         mod.TIMEPOINTS,
         rule=lambda m, t: sum(
@@ -641,7 +714,7 @@ def load_inputs(mod, switch_data, inputs_dir):
 
     # Loads per-generator PM2.5 and NOx override from inputs/gen_emission_costs.csv,
     # Expect columns named:
-    # 'gen_pm25_intensity_ton_per_MMBtu', 'gen_NOx_intensity_ton_per_MMBtu', 'gen_VOC_intensity_ton_per_MMBtu'
+    # 'gen_pm25_intensity_ton_per_MMBtu', 'gen_NOx_intensity_ton_per_MMBtu', 'gen_VOC_intensity_ton_per_MMBtu','gen_SO2_intensity_ton_per_MMBtu
     # all in (tonnes/MMBtu) keyed by GENERATION_PROJECT.
     switch_data.load_aug(
         optional=True,
@@ -649,10 +722,11 @@ def load_inputs(mod, switch_data, inputs_dir):
         select=("GENERATION_PROJECT", 
                 "gen_pm25_intensity_ton_per_MMBtu",
                 "gen_NOx_intensity_ton_per_MMBtu",
-                "gen_VOC_intensity_ton_per_MMBtu"
+                "gen_VOC_intensity_ton_per_MMBtu",
+                "gen_SO2_intensity_ton_per_MMBtu"
                 ),
         index=mod.GENERATION_PROJECTS,
-        param=(mod.gen_pm25_intensity,mod.gen_nox_intensity,mod.gen_voc_intensity),
+        param=(mod.gen_pm25_intensity,mod.gen_nox_intensity,mod.gen_voc_intensity,mod.gen_so2_intensity),
     )
 
 
@@ -789,6 +863,26 @@ def post_solve(instance, outdir):
                 if instance.gen_uses_fuel[g]
                 else 0.0
             ),
+            "DispatchSO2_ton_per_hr": (  # values are in tonnes (not grams), consistent with SO2 intensity units in tonnes/MMBtu.
+                value(
+                    sum(
+                        instance.DispatchSO2[g, t, f]
+                        for f in instance.FUELS_FOR_GEN[g]
+                    )
+                )
+                if instance.gen_uses_fuel[g]
+                else 0.0
+            ),
+            "DispatchSO2_ton_per_typical_yr": (  # values are in tonnes (not grams), consistent with SO2 intensity units in tonnes/MMBtu.
+                value(
+                    sum(
+                        instance.DispatchSO2[g, t, f] * instance.tp_weight_in_year[t]
+                        for f in instance.FUELS_FOR_GEN[g]
+                    )
+                )
+                if instance.gen_uses_fuel[g]
+                else 0.0
+            ),
             "GenCapacity_MW": value(instance.GenCapacity[g, p]),
             "GenCapitalCosts": value(instance.GenCapitalCosts[g, p]),
             "GenFixedOMCosts": value(instance.GenFixedOMCosts[g, p]),
@@ -823,6 +917,7 @@ def post_solve(instance, outdir):
         "DispatchPM25_ton_per_typical_yr",
         "DispatchNOx_ton_per_typical_yr",
         "DispatchVOC_ton_per_typical_yr",
+        "DispatchSO2_ton_per_typical_yr",
         "GenCapacity_MW",
         "GenCapitalCosts",
         "GenFixedOMCosts",
