@@ -43,7 +43,7 @@ from switch_model.utilities import (
     rewrap,
 )
 from switch_model.upgrade import do_inputs_need_upgrade, upgrade_inputs
-from switch_model.tools.graph.cli_graph import main as graph_main
+# from switch_model.tools.graph.cli_graph import main as graph_main
 
 
 def main(args=None, return_model=False, return_instance=False):
@@ -280,18 +280,18 @@ def main(args=None, return_model=False, return_instance=False):
             logger.info(
                 f"Completed post-solve processing in {timer.step_time():.2f} s."
             )
-        if instance.options.graph:
-            os.environ["SWITCH_INPUTS_DIR"] = instance.options.inputs_dir
-            os.environ["SWITCH_OUTPUTS_DIR"] = instance.options.outputs_dir
-            graph_main(
-                args=[
-                    "--overwrite",
-                    "--graph-dir",
-                    os.path.join(
-                        instance.options.outputs_dir, "plots"
-                    ),  # save figures into the same outputs folder
-                ]
-            )
+        # if instance.options.graph:
+        #     os.environ["SWITCH_INPUTS_DIR"] = instance.options.inputs_dir
+        #     os.environ["SWITCH_OUTPUTS_DIR"] = instance.options.outputs_dir
+        #     graph_main(
+        #         args=[
+        #             "--overwrite",
+        #             "--graph-dir",
+        #             os.path.join(
+        #                 instance.options.outputs_dir, "plots"
+        #             ),  # save figures into the same outputs folder
+        #         ]
+        #     )
 
         # if instance.options.graph:
         #     graph_main(args=["--overwrite"])
@@ -598,12 +598,12 @@ def define_arguments(argparser):
             "in random order (with earlier versions of Pyomo)."
         ),
     )
-    argparser.add_argument(
-        "--graph",
-        default=False,
-        action="store_true",
-        help="Automatically run switch graph after post solve",
-    )
+    # argparser.add_argument(
+    #     "--graph",
+    #     default=False,
+    #     action="store_true",
+    #     help="Automatically run switch graph after post solve",
+    # )
 
     # note: pyomo has a --solver-suffix option but it is not clear
     # whether that does the same thing as --suffix defined here,

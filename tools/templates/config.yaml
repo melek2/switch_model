@@ -48,7 +48,7 @@ post_process_steps: # The following post process steps will be run in order
 #  - add_storage # Used by Martin when studying LDES, likely shouldn't uncomment this line
 #  - aggregate_candidate_projects
   - replace_plants_in_zone_all
-  - create_graph_files
+  # - create_graph_files
 #  - energy_cost
   - fix_prebuild_conflict
 #  - derate_hydro
