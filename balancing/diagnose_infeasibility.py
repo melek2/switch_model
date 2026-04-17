@@ -221,28 +221,46 @@ def convert_bounds_to_constraint(m, v):
             m.logger.error(f"ERROR: unable to determine bounds rule for {v.name}")
             return
 
+    # def constraint_rule(m, *idx):
+    #     # note: we use getattr(m, v.name) instead of just v, because
+    #     # v is an object in the AbstractModel and this rule will be called on
+    #     # a concrete instance.
+    #     var = getattr(m, v.name)[idx]
+    #     lb, ub = bounds_rule(m, *idx)
+
+    #     # This can work with None according to
+    #     # https://pyomo.readthedocs.io/en/stable/pyomo_modeling_components/Constraints.html
+    #     return (lb, m.BuildGen["S-Geothermal", 2020], ub)
+
+    #     # # all possible constraint options, depending on presence of lower or
+    #     # # upper bounds
+    #     # options = {
+    #     #     (True, True): lb <= var <= ub,
+    #     #     (True, False): lb <= var,
+    #     #     (False, True): var <= ub,
+    #     #     (False, False): pyo.Constraint.Skip,
+    #     # }
+    #     # constraint = options[lb is not None, ub is not None]
+    #     # return constraint
     def constraint_rule(m, *idx):
-        # note: we use getattr(m, v.name) instead of just v, because
-        # v is an object in the AbstractModel and this rule will be called on
-        # a concrete instance.
-        var = getattr(m, v.name)[idx]
-        lb, ub = bounds_rule(m, *idx)
+            # note: we use getattr(m, v.name) instead of just v, because
+            # v is an object in the AbstractModel and this rule will be called on
+            # a concrete instance.
+            var = getattr(m, v.name)[idx]
+            lb, ub = bounds_rule(m, *idx)
 
-        # This can work with None according to
-        # https://pyomo.readthedocs.io/en/stable/pyomo_modeling_components/Constraints.html
-        return (lb, m.BuildGen["S-Geothermal", 2020], ub)
-
-        # # all possible constraint options, depending on presence of lower or
-        # # upper bounds
-        # options = {
-        #     (True, True): lb <= var <= ub,
-        #     (True, False): lb <= var,
-        #     (False, True): var <= ub,
-        #     (False, False): pyo.Constraint.Skip,
-        # }
-        # constraint = options[lb is not None, ub is not None]
-        # return constraint
-
+            # all possible constraint options, depending on presence of lower or
+            # upper bounds
+            # This can work with None according to
+            # https://pyomo.readthedocs.io/en/stable/pyomo_modeling_components/Constraints.html
+            options = {
+                (True, True): (lb, var, ub),
+                (True, False): (lb, var, None),
+                (False, True): (None, var, ub),
+                (False, False): pyo.Constraint.Skip,
+            }
+            constraint = options[lb is not None, ub is not None]
+            return constraint
     # Add the bounds constraint to the model
     setattr(m, v.name + "_bounds", pyo.Constraint(v.index_set(), rule=constraint_rule))
 

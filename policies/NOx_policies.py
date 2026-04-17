@@ -30,28 +30,72 @@ from pyomo.environ import Set, Param, Expression, Constraint, Suffix, NonNegativ
 import switch_model.reporting as reporting
 
 
+# def define_components(model):
+#     """
+#     Define NOx-related parameters and expressions for the model.
+
+#     This function introduces:
+#         1. A parameter `nox_cost_dollar_per_ton[g]` that stores the health cost
+#            of NOx emissions per generator (in $/ton).
+#         2. An expression `AnnualNOx_by_gen[g, p]` that calculates the annual
+#            NOx emissions (tons) produced by each generator g in each period p.
+#         3. An expression `NOxCosts[p]` that aggregates the total NOx cost
+#            (in $) for each period.
+#         4. Inclusion of `NOxCosts` in the model’s list of cost components so that
+#            it is considered in the total objective function.
+
+#     Notes
+#     -----
+#     - Generators without a specified NOx cost are assigned a default of zero.
+#     - NOx emissions are assumed to be precomputed at the dispatch level
+#       (via `DispatchNOx[g, t, f]`), consistent with other emissions tracking.
+#     """
+
+#     # 1) Health cost of NOx emissions ($/ton) by generator
+#     model.nox_cost_dollar_per_ton = Param(
+#         model.GENERATION_PROJECTS,
+#         within=NonNegativeReals,
+#         default=0.0,
+#         doc="Health cost of NOx emissions ($/ton) for each generator project.",
+#     )
+
+#     # 2) Annual NOx emissions by generator and period (tons/year)
+#     # model.AnnualNOx_by_gen = Expression(
+#     #     model.GENERATION_PROJECTS,
+#     #     model.PERIODS,
+#     #     rule=lambda m, g, p: sum(
+#     #         m.DispatchNOx[g, t, f] * m.tp_weight_in_year[t]
+#     #         for (g2, t, f) in m.GEN_TP_FUELS
+#     #         if g2 == g and m.tp_period[t] == p
+#     #     ),
+#     #     doc="Annual NOx emissions (tons) by generator and period.",
+#     # )
+#     model.AnnualNOx_by_gen = Expression(
+#         model.EMITTING_GENERATION_PROJECTS,
+#         model.PERIODS,
+#         rule=lambda m, g, p: sum(
+#             m.DispatchNOx[g, t, f] * m.tp_weight_in_year[t]
+#             for (g2, t, f) in m.GEN_TP_FUELS
+#             if g2 == g and m.tp_period[t] == p
+#         ),
+#         doc="Annual NOx emissions (tons) by emitting generator and period.",
+#     )
+
+#     # 3) Total NOx cost per period ($)
+#     model.NOxCosts = Expression(
+#         model.PERIODS,
+#         rule=lambda m, p: sum(
+#             m.AnnualNOx_by_gen[g, p] * m.nox_cost_dollar_per_ton[g]
+#             # for g in m.GENERATION_PROJECTS
+#             for g in m.EMITTING_GENERATION_PROJECTS
+#         ),
+#         doc="Total NOx cost ($) across emitting generators for each period.",
+#     )
+
+#     # 4) Register NOx cost component in the total cost function
+#     model.Cost_Components_Per_Period.append("NOxCosts")
+
 def define_components(model):
-    """
-    Define NOx-related parameters and expressions for the model.
-
-    This function introduces:
-        1. A parameter `nox_cost_dollar_per_ton[g]` that stores the health cost
-           of NOx emissions per generator (in $/ton).
-        2. An expression `AnnualNOx_by_gen[g, p]` that calculates the annual
-           NOx emissions (tons) produced by each generator g in each period p.
-        3. An expression `NOxCosts[p]` that aggregates the total NOx cost
-           (in $) for each period.
-        4. Inclusion of `NOxCosts` in the model’s list of cost components so that
-           it is considered in the total objective function.
-
-    Notes
-    -----
-    - Generators without a specified NOx cost are assigned a default of zero.
-    - NOx emissions are assumed to be precomputed at the dispatch level
-      (via `DispatchNOx[g, t, f]`), consistent with other emissions tracking.
-    """
-
-    # 1) Health cost of NOx emissions ($/ton) by generator
     model.nox_cost_dollar_per_ton = Param(
         model.GENERATION_PROJECTS,
         within=NonNegativeReals,
@@ -59,32 +103,30 @@ def define_components(model):
         doc="Health cost of NOx emissions ($/ton) for each generator project.",
     )
 
-    # 2) Annual NOx emissions by generator and period (tons/year)
-    model.AnnualNOx_by_gen = Expression(
-        model.GENERATION_PROJECTS,
-        model.PERIODS,
-        rule=lambda m, g, p: sum(
+    def AnnualNOx_by_gen_rule(m, g, p):
+        from switch_model.policies.PM25_policies import _build_gen_tp_fuels_lookup
+        _build_gen_tp_fuels_lookup(m)
+        return sum(
             m.DispatchNOx[g, t, f] * m.tp_weight_in_year[t]
-            for (g2, t, f) in m.GEN_TP_FUELS
-            if g2 == g and m.tp_period[t] == p
-        ),
-        doc="Annual NOx emissions (tons) by generator and period.",
+            for (t, f) in m._GEN_TP_FUELS_by_gen_period.get((g, p), [])
+        )
+
+    model.AnnualNOx_by_gen = Expression(
+        model.EMITTING_GENERATION_PROJECTS, model.PERIODS,
+        rule=AnnualNOx_by_gen_rule,
+        doc="Annual NOx emissions (tons) by emitting generator and period.",
     )
 
-    # 3) Total NOx cost per period ($)
     model.NOxCosts = Expression(
         model.PERIODS,
         rule=lambda m, p: sum(
             m.AnnualNOx_by_gen[g, p] * m.nox_cost_dollar_per_ton[g]
-            for g in m.GENERATION_PROJECTS
+            for g in m.EMITTING_GENERATION_PROJECTS
         ),
-        doc="Total NOx cost ($) across all generators for each period.",
+        doc="Total NOx cost ($) across emitting generators for each period.",
     )
 
-    # 4) Register NOx cost component in the total cost function
     model.Cost_Components_Per_Period.append("NOxCosts")
-
-
 def load_inputs(model, switch_data, inputs_dir):
     """
     Load NOx cost data for each generator.
@@ -113,60 +155,12 @@ def load_inputs(model, switch_data, inputs_dir):
     """
     switch_data.load_aug(
         filename=os.path.join(inputs_dir, "gen_emission_costs.csv"),
-        index=model.GENERATION_PROJECTS,
+        # index=model.GENERATION_PROJECTS,
         param=(model.nox_cost_dollar_per_ton,),
         optional=True,
     )
 
 
-def post_solve(model, outdir):
-    """
-    Export annual NOx emissions and costs after model solution.
-
-    This function generates a CSV file `NOx.csv` containing annual NOx
-    emissions and associated monetary costs for each period.
-
-    Output file
-    ------------
-    NOx.csv
-        Columns:
-            PERIOD,
-            AnnualNOx_base_units,
-            NOxCost_dollar_per_period
-
-    Parameters
-    ----------
-    model : pyomo.environ.ConcreteModel
-        The solved model instance.
-    outdir : str
-        Directory path where the output file will be written.
-    """
-
-    def get_row(m, period):
-        return [
-            period,
-            m.AnnualNOx[period],  # total NOx emitted in base units
-            m.NOxCosts[period],   # total NOx cost ($)
-        ]
-
-    reporting.write_table(
-        model,
-        model.PERIODS,
-        output_file=os.path.join(outdir, "NOx.csv"),
-        headings=(
-            "PERIOD",
-            "AnnualNOx_base_units",
-            "NOxCost_dollar_per_period",
-        ),
-        values=get_row,
-    )
-
-    reporting.write_table(
-        model, model.GENERATION_PROJECTS * model.PERIODS,
-        output_file=os.path.join(outdir, "NOx_by_generator.csv"),
-        headings=("GENERATION_PROJECT","PERIOD","AnnualNOx_ton","NOxCost_$"),
-        values=lambda m,g,p: (g, p, m.AnnualNOx_by_gen[g,p], m.AnnualNOx_by_gen[g,p]*m.nox_cost_dollar_per_ton[g]),
-    )
 def post_solve(model, outdir):
     """
     Export annual NOx emissions and costs after the model solves.
@@ -221,7 +215,7 @@ def post_solve(model, outdir):
 
     reporting.write_table(
         model,
-        model.GENERATION_PROJECTS * model.PERIODS,
+        model.EMITTING_GENERATION_PROJECTS * model.PERIODS,
         output_file=os.path.join(outdir, "NOx_by_generator.csv"),
         headings=("GENERATION_PROJECT", "PERIOD", "AnnualNOx_ton", "NOxCost_dollar_per_period"),
         values=lambda m, g, p: (
@@ -231,4 +225,17 @@ def post_solve(model, outdir):
             m.AnnualNOx_by_gen[g, p] * m.nox_cost_dollar_per_ton[g],
         ),
     )
+
+    # reporting.write_table(
+    #     model,
+    #     model.GENERATION_PROJECTS * model.PERIODS,
+    #     output_file=os.path.join(outdir, "NOx_by_generator.csv"),
+    #     headings=("GENERATION_PROJECT", "PERIOD", "AnnualNOx_ton", "NOxCost_dollar_per_period"),
+    #     values=lambda m, g, p: (
+    #         g,
+    #         p,
+    #         m.AnnualNOx_by_gen[g, p],
+    #         m.AnnualNOx_by_gen[g, p] * m.nox_cost_dollar_per_ton[g],
+    #     ),
+    # )
 

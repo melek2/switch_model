@@ -3,7 +3,7 @@
 """
 Defines generation project construction and suspension/retirement plan.
 """
-
+import warnings
 import os
 from pyomo.environ import *
 from switch_model.financials import capital_recovery_factor as crf
@@ -254,6 +254,18 @@ def define_components(mod):
     mod.gen_is_cogen = Param(mod.GENERATION_PROJECTS, within=Boolean, default=False)
     mod.gen_is_distributed = Param(
         mod.GENERATION_PROJECTS, within=Boolean, default=False
+    )
+    mod.gen_is_emitter = Param(
+        mod.GENERATION_PROJECTS,
+        within=Boolean,
+        default=True,
+        doc="True if generator emits air pollutants. Default True for backward compatibility.",
+    )
+
+    mod.EMITTING_GENERATION_PROJECTS = Set(
+        within=mod.GENERATION_PROJECTS,
+        initialize=lambda m: sorted(g for g in m.GENERATION_PROJECTS if m.gen_is_emitter[g]),
+        doc="Subset of generators that emit air pollutants.",
     )
     mod.gen_scheduled_outage_rate = Param(
         mod.GENERATION_PROJECTS, within=PercentFraction, default=0
@@ -739,7 +751,21 @@ def load_inputs(mod, switch_data, inputs_dir):
         GENERATION_PROJECT, build_year, gen_overnight_cost, gen_fixed_om
 
     """
+    gen_info_path = os.path.join(inputs_dir, "gen_info.csv")
 
+    has_gen_is_emitter = False
+    if os.path.isfile(gen_info_path):
+        with open(gen_info_path, "r") as f:
+            header = f.readline().strip().split(",")
+            has_gen_is_emitter = "gen_is_emitter" in header
+
+    if not has_gen_is_emitter:
+        warnings.warn(
+            "gen_is_emitter column not found in gen_info.csv. "
+            "All generators will be treated as emitters (legacy behavior). "
+            "Add gen_is_emitter to gen_info.csv to enable faster emissions policy construction.",
+            UserWarning,
+        )
     switch_data.load_aug(
         filename=os.path.join(inputs_dir, "gen_info.csv"),
         optional_params=[
@@ -754,6 +780,7 @@ def load_inputs(mod, switch_data, inputs_dir):
             "gen_min_build_capacity",
             "gen_is_cogen",
             "gen_is_distributed",
+            "gen_is_emitter",
         ],
         index=mod.GENERATION_PROJECTS,
         param=(
@@ -776,6 +803,7 @@ def load_inputs(mod, switch_data, inputs_dir):
             mod.gen_connect_cost_per_mw,
             mod.gen_is_cogen,
             mod.gen_is_distributed,
+            mod.gen_is_emitter,
             mod.gen_can_suspend,
             mod.gen_can_retire_early,
         ),

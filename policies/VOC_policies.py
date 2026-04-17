@@ -30,28 +30,78 @@ from pyomo.environ import Set, Param, Expression, Constraint, Suffix, NonNegativ
 import switch_model.reporting as reporting
 
 
+# def define_components(model):
+#     """
+#     Define VOC-related parameters and expressions for the model.
+
+#     This function introduces:
+#         1. A parameter `voc_cost_dollar_per_ton[g]` that stores the health cost
+#            of VOC emissions per generator (in $/ton).
+#         2. An expression `AnnualVOC_by_gen[g, p]` that calculates the annual
+#            VOC emissions (tons) produced by each generator g in each period p.
+#         3. An expression `VOCCosts[p]` that aggregates the total VOC cost
+#            (in $) for each period.
+#         4. Inclusion of `VOCCosts` in the model’s list of cost components so that
+#            it is considered in the total objective function.
+
+#     Notes
+#     -----
+#     - Generators without a specified VOC cost are assigned a default of zero.
+#     - VOC emissions are assumed to be precomputed at the dispatch level
+#       (via `DispatchVOC[g, t, f]`), consistent with other emissions tracking.
+#     """
+
+#     # 1) Health cost of VOC emissions ($/ton) by generator
+#     model.voc_cost_dollar_per_ton = Param(
+#         model.GENERATION_PROJECTS,
+#         within=NonNegativeReals,
+#         default=0.0,
+#         doc="Health cost of VOC emissions ($/ton) for each generator project.",
+#     )
+
+#     # 2) Annual VOC emissions by generator and period (tons/year)
+#     # model.AnnualVOC_by_gen = Expression(
+#     #     model.GENERATION_PROJECTS,
+#     #     model.PERIODS,
+#     #     rule=lambda m, g, p: sum(
+#     #         m.DispatchVOC[g, t, f] * m.tp_weight_in_year[t]
+#     #         for (g2, t, f) in m.GEN_TP_FUELS
+#     #         if g2 == g and m.tp_period[t] == p
+#     #     ),
+#     #     doc="Annual VOC emissions (tons) by generator and period.",
+#     # )
+#     model.AnnualVOC_by_gen = Expression(
+#         model.EMITTING_GENERATION_PROJECTS,
+#         model.PERIODS,
+#         rule=lambda m, g, p: sum(
+#             m.DispatchVOC[g, t, f] * m.tp_weight_in_year[t]
+#             for (g2, t, f) in m.GEN_TP_FUELS
+#             if g2 == g and m.tp_period[t] == p
+#         ),
+#         doc="Annual VOC emissions (tons) by emitting generator and period.",
+#     )
+
+#     # 3) Total VOC cost per period ($)
+#     # model.VOCCosts = Expression(
+#     #     model.PERIODS,
+#     #     rule=lambda m, p: sum(
+#     #         m.AnnualVOC_by_gen[g, p] * m.voc_cost_dollar_per_ton[g]
+#     #         for g in m.GENERATION_PROJECTS
+#     #     ),
+#     #     doc="Total VOC cost ($) across all generators for each period.",
+#     # )
+#     model.VOCCosts = Expression(
+#         model.PERIODS,
+#         rule=lambda m, p: sum(
+#             m.AnnualVOC_by_gen[g, p] * m.voc_cost_dollar_per_ton[g]
+#             for g in m.EMITTING_GENERATION_PROJECTS
+#         ),
+#         doc="Total VOC cost ($) across emitting generators for each period.",
+#     )
+
+#     # 4) Register VOC cost component in the total cost function
+#     model.Cost_Components_Per_Period.append("VOCCosts")
 def define_components(model):
-    """
-    Define VOC-related parameters and expressions for the model.
-
-    This function introduces:
-        1. A parameter `voc_cost_dollar_per_ton[g]` that stores the health cost
-           of VOC emissions per generator (in $/ton).
-        2. An expression `AnnualVOC_by_gen[g, p]` that calculates the annual
-           VOC emissions (tons) produced by each generator g in each period p.
-        3. An expression `VOCCosts[p]` that aggregates the total VOC cost
-           (in $) for each period.
-        4. Inclusion of `VOCCosts` in the model’s list of cost components so that
-           it is considered in the total objective function.
-
-    Notes
-    -----
-    - Generators without a specified VOC cost are assigned a default of zero.
-    - VOC emissions are assumed to be precomputed at the dispatch level
-      (via `DispatchVOC[g, t, f]`), consistent with other emissions tracking.
-    """
-
-    # 1) Health cost of VOC emissions ($/ton) by generator
     model.voc_cost_dollar_per_ton = Param(
         model.GENERATION_PROJECTS,
         within=NonNegativeReals,
@@ -59,31 +109,30 @@ def define_components(model):
         doc="Health cost of VOC emissions ($/ton) for each generator project.",
     )
 
-    # 2) Annual VOC emissions by generator and period (tons/year)
-    model.AnnualVOC_by_gen = Expression(
-        model.GENERATION_PROJECTS,
-        model.PERIODS,
-        rule=lambda m, g, p: sum(
+    def AnnualVOC_by_gen_rule(m, g, p):
+        from switch_model.policies.PM25_policies import _build_gen_tp_fuels_lookup
+        _build_gen_tp_fuels_lookup(m)
+        return sum(
             m.DispatchVOC[g, t, f] * m.tp_weight_in_year[t]
-            for (g2, t, f) in m.GEN_TP_FUELS
-            if g2 == g and m.tp_period[t] == p
-        ),
-        doc="Annual VOC emissions (tons) by generator and period.",
+            for (t, f) in m._GEN_TP_FUELS_by_gen_period.get((g, p), [])
+        )
+
+    model.AnnualVOC_by_gen = Expression(
+        model.EMITTING_GENERATION_PROJECTS, model.PERIODS,
+        rule=AnnualVOC_by_gen_rule,
+        doc="Annual VOC emissions (tons) by emitting generator and period.",
     )
 
-    # 3) Total VOC cost per period ($)
     model.VOCCosts = Expression(
         model.PERIODS,
         rule=lambda m, p: sum(
             m.AnnualVOC_by_gen[g, p] * m.voc_cost_dollar_per_ton[g]
-            for g in m.GENERATION_PROJECTS
+            for g in m.EMITTING_GENERATION_PROJECTS
         ),
-        doc="Total VOC cost ($) across all generators for each period.",
+        doc="Total VOC cost ($) across emitting generators for each period.",
     )
 
-    # 4) Register VOC cost component in the total cost function
     model.Cost_Components_Per_Period.append("VOCCosts")
-
 
 def load_inputs(model, switch_data, inputs_dir):
     """
@@ -113,60 +162,12 @@ def load_inputs(model, switch_data, inputs_dir):
     """
     switch_data.load_aug(
         filename=os.path.join(inputs_dir, "gen_emission_costs.csv"),
-        index=model.GENERATION_PROJECTS,
+        # index=model.GENERATION_PROJECTS,
         param=(model.voc_cost_dollar_per_ton,),
         optional=True,
     )
 
 
-def post_solve(model, outdir):
-    """
-    Export annual VOC emissions and costs after model solution.
-
-    This function generates a CSV file `VOC.csv` containing annual VOC
-    emissions and associated monetary costs for each period.
-
-    Output file
-    ------------
-    VOC.csv
-        Columns:
-            PERIOD,
-            AnnualVOC_base_units,
-            VOCCost_dollar_per_period
-
-    Parameters
-    ----------
-    model : pyomo.environ.ConcreteModel
-        The solved model instance.
-    outdir : str
-        Directory path where the output file will be written.
-    """
-
-    def get_row(m, period):
-        return [
-            period,
-            m.AnnualVOC[period],  # total VOC emitted in base units
-            m.VOCCosts[period],   # total VOC cost ($)
-        ]
-
-    reporting.write_table(
-        model,
-        model.PERIODS,
-        output_file=os.path.join(outdir, "VOC.csv"),
-        headings=(
-            "PERIOD",
-            "AnnualVOC_base_units",
-            "VOCCost_dollar_per_period",
-        ),
-        values=get_row,
-    )
-
-    reporting.write_table(
-        model, model.GENERATION_PROJECTS * model.PERIODS,
-        output_file=os.path.join(outdir, "VOC_by_generator.csv"),
-        headings=("GENERATION_PROJECT","PERIOD","AnnualVOC_ton","VOCCost_$"),
-        values=lambda m,g,p: (g, p, m.AnnualVOC_by_gen[g,p], m.AnnualVOC_by_gen[g,p]*m.voc_cost_dollar_per_ton[g]),
-    )
 def post_solve(model, outdir):
     """
     Export annual VOC emissions and costs after the model solves.
@@ -221,7 +222,7 @@ def post_solve(model, outdir):
 
     reporting.write_table(
         model,
-        model.GENERATION_PROJECTS * model.PERIODS,
+        model.EMITTING_GENERATION_PROJECTS * model.PERIODS,
         output_file=os.path.join(outdir, "VOC_by_generator.csv"),
         headings=("GENERATION_PROJECT", "PERIOD", "AnnualVOC_ton", "VOCCost_dollar_per_period"),
         values=lambda m, g, p: (
@@ -231,4 +232,17 @@ def post_solve(model, outdir):
             m.AnnualVOC_by_gen[g, p] * m.voc_cost_dollar_per_ton[g],
         ),
     )
+
+    # reporting.write_table(
+    #     model,
+    #     model.GENERATION_PROJECTS * model.PERIODS,
+    #     output_file=os.path.join(outdir, "VOC_by_generator.csv"),
+    #     headings=("GENERATION_PROJECT", "PERIOD", "AnnualVOC_ton", "VOCCost_dollar_per_period"),
+    #     values=lambda m, g, p: (
+    #         g,
+    #         p,
+    #         m.AnnualVOC_by_gen[g, p],
+    #         m.AnnualVOC_by_gen[g, p] * m.voc_cost_dollar_per_ton[g],
+    #     ),
+    # )
 

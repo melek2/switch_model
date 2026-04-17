@@ -30,28 +30,94 @@ from pyomo.environ import Set, Param, Expression, Constraint, Suffix, NonNegativ
 import switch_model.reporting as reporting
 
 
+# def define_components(model):
+#     """
+#     Define PM2.5-related parameters and expressions for the model.
+
+#     This function introduces:
+#         1. A parameter `pm25_cost_dollar_per_ton[g]` that stores the health cost
+#            of PM2.5 emissions per generator (in $/ton).
+#         2. An expression `AnnualPM25_by_gen[g, p]` that calculates the annual
+#            PM2.5 emissions (tons) produced by each generator g in each period p.
+#         3. An expression `PM25Costs[p]` that aggregates the total PM2.5 cost
+#            (in $) for each period.
+#         4. Inclusion of `PM25Costs` in the model’s list of cost components so that
+#            it is considered in the total objective function.
+
+#     Notes
+#     -----
+#     - Generators without a specified PM2.5 cost are assigned a default of zero.
+#     - PM2.5 emissions are assumed to be precomputed at the dispatch level
+#       (via `DispatchPM25[g, t, f]`), consistent with other emissions tracking.
+#     """
+
+#     # 1) Health cost of PM2.5 emissions ($/ton) by generator
+#     model.pm25_cost_dollar_per_ton = Param(
+#         model.GENERATION_PROJECTS,
+#         within=NonNegativeReals,
+#         default=0.0,
+#         doc="Health cost of PM2.5 emissions ($/ton) for each generator project.",
+#     )
+
+#     # 2) Annual PM2.5 emissions by generator and period (tons/year)
+#     # model.AnnualPM25_by_gen = Expression(
+#     #     model.GENERATION_PROJECTS,
+#     #     model.PERIODS,
+#     #     rule=lambda m, g, p: sum(
+#     #         m.DispatchPM25[g, t, f] * m.tp_weight_in_year[t]
+#     #         for (g2, t, f) in m.GEN_TP_FUELS
+#     #         if g2 == g and m.tp_period[t] == p
+#     #     ),
+#     #     doc="Annual PM2.5 emissions (tons) by generator and period.",
+#     # )
+#     # 2) Annual PM2.5 emissions by *emitting* generator and period (tons/year)
+#     model.AnnualPM25_by_gen = Expression(
+#         model.EMITTING_GENERATION_PROJECTS,
+#         model.PERIODS,
+#         rule=lambda m, g, p: sum(
+#             m.DispatchPM25[g, t, f] * m.tp_weight_in_year[t]
+#             for (g2, t, f) in m.GEN_TP_FUELS
+#             if g2 == g and m.tp_period[t] == p
+#         ),
+#         doc="Annual PM2.5 emissions (tons) by emitting generator and period.",
+#     )
+
+#     # # 3) Total PM2.5 cost per period ($)
+#     # model.PM25Costs = Expression(
+#     #     model.PERIODS,
+#     #     rule=lambda m, p: sum(
+#     #         m.AnnualPM25_by_gen[g, p] * m.pm25_cost_dollar_per_ton[g]
+#     #         for g in m.GENERATION_PROJECTS
+#     #     ),
+#     #     doc="Total PM2.5 cost ($) across all generators for each period.",
+#     # )
+#     # 3) Total PM2.5 cost per period ($)
+#     model.PM25Costs = Expression(
+#         model.PERIODS,
+#         rule=lambda m, p: sum(
+#             m.AnnualPM25_by_gen[g, p] * m.pm25_cost_dollar_per_ton[g]
+#             for g in m.EMITTING_GENERATION_PROJECTS
+#         ),
+#         doc="Total PM2.5 cost ($) across emitting generators for each period.",
+#     )
+
+#     # 4) Register PM2.5 cost component in the total cost function
+#     model.Cost_Components_Per_Period.append("PM25Costs")
+def _build_gen_tp_fuels_lookup(m):
+    """
+    Build a shared lookup dict mapping (generator, period) -> [(timepoint, fuel), ...]
+    from GEN_TP_FUELS. Attached to the model instance so it is constructed once
+    and reused by all pollutant policy modules (PM2.5, NOx, VOC, SO2).
+    """
+    if not hasattr(m, '_GEN_TP_FUELS_by_gen_period'):
+        d = {}
+        for (g, t, f) in m.GEN_TP_FUELS:
+            key = (g, m.tp_period[t])
+            if key not in d:
+                d[key] = []
+            d[key].append((t, f))
+        m._GEN_TP_FUELS_by_gen_period = d
 def define_components(model):
-    """
-    Define PM2.5-related parameters and expressions for the model.
-
-    This function introduces:
-        1. A parameter `pm25_cost_dollar_per_ton[g]` that stores the health cost
-           of PM2.5 emissions per generator (in $/ton).
-        2. An expression `AnnualPM25_by_gen[g, p]` that calculates the annual
-           PM2.5 emissions (tons) produced by each generator g in each period p.
-        3. An expression `PM25Costs[p]` that aggregates the total PM2.5 cost
-           (in $) for each period.
-        4. Inclusion of `PM25Costs` in the model’s list of cost components so that
-           it is considered in the total objective function.
-
-    Notes
-    -----
-    - Generators without a specified PM2.5 cost are assigned a default of zero.
-    - PM2.5 emissions are assumed to be precomputed at the dispatch level
-      (via `DispatchPM25[g, t, f]`), consistent with other emissions tracking.
-    """
-
-    # 1) Health cost of PM2.5 emissions ($/ton) by generator
     model.pm25_cost_dollar_per_ton = Param(
         model.GENERATION_PROJECTS,
         within=NonNegativeReals,
@@ -59,31 +125,29 @@ def define_components(model):
         doc="Health cost of PM2.5 emissions ($/ton) for each generator project.",
     )
 
-    # 2) Annual PM2.5 emissions by generator and period (tons/year)
-    model.AnnualPM25_by_gen = Expression(
-        model.GENERATION_PROJECTS,
-        model.PERIODS,
-        rule=lambda m, g, p: sum(
+    def AnnualPM25_by_gen_rule(m, g, p):
+        _build_gen_tp_fuels_lookup(m)
+        return sum(
             m.DispatchPM25[g, t, f] * m.tp_weight_in_year[t]
-            for (g2, t, f) in m.GEN_TP_FUELS
-            if g2 == g and m.tp_period[t] == p
-        ),
-        doc="Annual PM2.5 emissions (tons) by generator and period.",
+            for (t, f) in m._GEN_TP_FUELS_by_gen_period.get((g, p), [])
+        )
+
+    model.AnnualPM25_by_gen = Expression(
+        model.EMITTING_GENERATION_PROJECTS, model.PERIODS,
+        rule=AnnualPM25_by_gen_rule,
+        doc="Annual PM2.5 emissions (tons) by emitting generator and period.",
     )
 
-    # 3) Total PM2.5 cost per period ($)
     model.PM25Costs = Expression(
         model.PERIODS,
         rule=lambda m, p: sum(
             m.AnnualPM25_by_gen[g, p] * m.pm25_cost_dollar_per_ton[g]
-            for g in m.GENERATION_PROJECTS
+            for g in m.EMITTING_GENERATION_PROJECTS
         ),
-        doc="Total PM2.5 cost ($) across all generators for each period.",
+        doc="Total PM2.5 cost ($) across emitting generators for each period.",
     )
 
-    # 4) Register PM2.5 cost component in the total cost function
     model.Cost_Components_Per_Period.append("PM25Costs")
-
 
 def load_inputs(model, switch_data, inputs_dir):
     """
@@ -113,7 +177,7 @@ def load_inputs(model, switch_data, inputs_dir):
     """
     switch_data.load_aug(
         filename=os.path.join(inputs_dir, "gen_emission_costs.csv"),
-        index=model.GENERATION_PROJECTS,
+        # index=model.GENERATION_PROJECTS,
         param=(model.pm25_cost_dollar_per_ton,),
         optional=True,
     )
@@ -173,7 +237,7 @@ def post_solve(model, outdir):
 
     reporting.write_table(
         model,
-        model.GENERATION_PROJECTS * model.PERIODS,
+        model.EMITTING_GENERATION_PROJECTS * model.PERIODS,
         output_file=os.path.join(outdir, "PM25_by_generator.csv"),
         headings=("GENERATION_PROJECT", "PERIOD", "AnnualPM25_ton", "PM25Cost_dollar_per_period"),
         values=lambda m, g, p: (
@@ -183,3 +247,15 @@ def post_solve(model, outdir):
             m.AnnualPM25_by_gen[g, p] * m.pm25_cost_dollar_per_ton[g],
         ),
     )
+    # reporting.write_table(
+    #     model,
+    #     model.GENERATION_PROJECTS * model.PERIODS,
+    #     output_file=os.path.join(outdir, "PM25_by_generator.csv"),
+    #     headings=("GENERATION_PROJECT", "PERIOD", "AnnualPM25_ton", "PM25Cost_dollar_per_period"),
+    #     values=lambda m, g, p: (
+    #         g,
+    #         p,
+    #         m.AnnualPM25_by_gen[g, p],
+    #         m.AnnualPM25_by_gen[g, p] * m.pm25_cost_dollar_per_ton[g],
+    #     ),
+    # )

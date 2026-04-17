@@ -725,7 +725,7 @@ def load_inputs(mod, switch_data, inputs_dir):
                 "gen_VOC_intensity_ton_per_MMBtu",
                 "gen_SO2_intensity_ton_per_MMBtu"
                 ),
-        index=mod.GENERATION_PROJECTS,
+        # index=mod.GENERATION_PROJECTS,
         param=(mod.gen_pm25_intensity,mod.gen_nox_intensity,mod.gen_voc_intensity,mod.gen_so2_intensity),
     )
 
