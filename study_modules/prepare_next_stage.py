@@ -26,13 +26,33 @@ def post_solve(m, outdir):
 
     # how to choose the next year in the chain
     # model_years = [2027, 2030, 2035, 2040, 2045, 2050]
-    model_years = [2030, 2040, 2050]
+    # we can tell which period we're dealing with by looking at m.PERIODS
+    # or outdir, which should be <root>/year/case
+    in_path = Path(m.options.inputs_dir)
+    out_path = Path(m.options.outputs_dir)
+
+    # Determine the current investment period from periods.csv, then discover
+    # future stage folders as sibling year directories under <root>.
+    current_year = int(
+        pd.read_csv(in_path / "periods.csv")["INVESTMENT_PERIOD"].iloc[0]
+    )
+    root_path = Path(*in_path.parts[:-2])
+    def _as_model_year(name):
+        try:
+            y = int(name)
+        except ValueError:
+            return None
+        return y if 2020 <= y <= 2100 and y >= current_year else None
+    model_years = sorted(
+        y for p in root_path.iterdir() if p.is_dir()
+        for y in [_as_model_year(p.name)] if y is not None
+    )
     next_year_dict = dict(zip(model_years[:-1], model_years[1:]))
 
     # we can tell which period we're dealing with by looking at m.PERIODS
     # or outdir, which should be be <root>/year/case
-    in_path = Path(m.options.inputs_dir)
-    out_path = Path(m.options.outputs_dir)
+    # in_path = Path(m.options.inputs_dir)
+    # out_path = Path(m.options.outputs_dir)
 
     year_name, case_name = out_path.parts[-2:]
 
@@ -239,7 +259,14 @@ def post_solve(m, outdir):
 
     # Merge with the predetermined construction data from the next stage.
     predet = merge_build_data(predet, "gen_build_predetermined.csv")
-    # drop any that are zero or very small
+    # Clip numerical-noise values (including tiny negatives from
+    # build - retire roundoff) to zero. Without this, a row with
+    # build_gen_predetermined == -2e-13 but a positive energy capacity can
+    # survive the filter below and then crash the next stage with
+    # "Value not in parameter domain NonNegativeReals".
+    for col in ("build_gen_predetermined", "build_gen_energy_predetermined"):
+        predet.loc[predet[col].abs() < 0.001, col] = 0.0
+    # drop any that are zero or very small in both capacity and energy
     predet = predet.query(
         "build_gen_predetermined > 0.001 or build_gen_energy_predetermined > 0.001"
     )
@@ -266,67 +293,6 @@ def post_solve(m, outdir):
     # model and data from the next model for additional projects/build_years)
     costs = merge_build_data(costs, "gen_build_costs.csv")
     to_csv(costs, chained(next_in_path, "gen_build_costs.csv"))
-    # ==================================================================
-    # Chain gen_emission_costs.csv
-    #
-    # Rule:
-    # - Projects that have positive capacity carried into the next stage
-    #   (i.e., appear in predet after filtering) should keep their
-    #   current emission attributes (already frozen through any earlier
-    #   chained stages).
-    # - Projects with no capacity in predet should use the next stage's
-    #   CERF-based emission costs/intensities.
-    # ==================================================================
-    try:
-        emis_curr = read_csv(possibly_chained(in_path, "gen_emission_costs.csv"))
-        emis_next = read_csv(next_in_path, "gen_emission_costs.csv")
-    except FileNotFoundError:
-        emis_curr = None
-        emis_next = None
-
-    if emis_curr is not None and emis_next is not None:
-        # Only keep projects that actually exist in the next stage's gen_info
-        valid_projects = next_gen_info["GENERATION_PROJECT"].unique()
-        emis_curr = emis_curr[emis_curr["GENERATION_PROJECT"].isin(valid_projects)]
-        emis_next = emis_next[emis_next["GENERATION_PROJECT"].isin(valid_projects)]
-
-        # Projects with positive predetermined capacity at the start of
-        # the next stage are "in service" and should keep their current
-        # emission attributes.
-        in_service_projects = predet["GENERATION_PROJECT"].unique()
-
-        emis_frozen = emis_curr[
-            emis_curr["GENERATION_PROJECT"].isin(in_service_projects)
-        ]
-        # Projects with no carried-forward capacity are still candidates
-        # and should use the next stage's CERF-based emissions.
-        emis_candidates = emis_next[
-            ~emis_next["GENERATION_PROJECT"].isin(in_service_projects)
-        ]
-
-        emis_combined = pd.concat(
-            [emis_frozen, emis_candidates], ignore_index=True
-        )
-
-        # Safety: if an in-service project is somehow missing from
-        # emis_curr, fall back to emis_next so it still has a row.
-        missing = set(in_service_projects) - set(
-            emis_frozen["GENERATION_PROJECT"]
-        )
-        if missing:
-            fallback = emis_next[
-                emis_next["GENERATION_PROJECT"].isin(missing)
-            ]
-            emis_combined = pd.concat(
-                [emis_combined, fallback], ignore_index=True
-            )
-
-        # Ensure exactly one row per GENERATION_PROJECT
-        emis_combined = emis_combined.drop_duplicates(
-            subset=["GENERATION_PROJECT"], keep="first"
-        )
-
-        to_csv(emis_combined, chained(next_in_path, "gen_emission_costs.csv"))
 
     # combine starting transmission for this case with transmission expansion
     trans = read_csv(possibly_chained(in_path, "transmission_lines.csv"))
